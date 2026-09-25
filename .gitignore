@@ -1,0 +1,20 @@
+# Large AADR source files - re-downloadable from Harvard Dataverse
+# https://doi.org/10.7910/DVN/FFIDCW
+dataverse_files/
+dataverse_files.zip
+data/*.anno
+data/*.snp
+data/*.geno
+data/*.bed
+data/*.bim
+data/*.fam
+
+# R / RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# OS
+.DS_Store
+Thumbs.db
