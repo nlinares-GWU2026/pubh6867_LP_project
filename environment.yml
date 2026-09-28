@@ -1,0 +1,8 @@
+name: aadr-lp
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - plink=1.90b7.7
+  - eigensoft=9.0.0
