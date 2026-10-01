@@ -1,0 +1,10 @@
+# Progress
+## So far:
+1. Got raw data into useable form by downloading AADR (12,089 ancient and present-day people) from Harvard Dataverse, then used `convertf` to reformat AADR's packed genotype file, and PLINK to pull out just the one SNP (rs4988235). 
+2. Merged genotypes with real-world context. Joined those genotypes to AADR's annotation file, which provided each person's date, location, and archeaological culture. Genotype only tells us nothing about *when* or *where* - date and location from the .anno file tells me that.
+3. Decided which countries count as Europe (excluding Russia and Turkey, after it was found their samples span absurd geographic extremes) and adopted 1,000 year time bins following the convention used in Ségurel et al. (2020), the actual paper on this SNP of LP which means my binning choice is citable, not arbitrary.
+4. Built and validated Q1's result. I collapsed pre-10,000 BP data into one baseline category, separated genuine ancient burials from modern reference populations, and built a chart showing frequency rising from near zero to roughly 45% today. I checked it against two independent reality tests, modern vs southern Europe showed the expected gap and Belgium skewing one bin sensitivity check confirmed the apparent recent dip is a sampling artifact, not a real decline. 
+5. Set up project to be reproducible on Git repo.
+
+## Current: Q2 
+Find out which archaeological groups are actually in my data - see what culture names AADR actually uses. 
