@@ -7,4 +7,4 @@
 5. Set up project to be reproducible on Git repo.
 
 ## Current: Q2 
-Find out which archaeological groups are actually in my data - see what culture names AADR actually uses. 
+Find out which archaeological groups are actually in my data - see what culture names AADR actually uses. Finding which archaeological groups are actually in my data before labeling as "steppe-associated". Haak et al., 2015 and Allentoft et al., 2015 name specific archaeological cultures tied to Bronze Age steppe migration: Yamnaya (steppe population itself), Corded Ware, Bell Beaker (which both emerged in Europe after). Also a few cultures preceding Yamanaya west spread: Catacomb, Srubnaya, and Sintashta.

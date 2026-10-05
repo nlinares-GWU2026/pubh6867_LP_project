@@ -249,3 +249,37 @@ sort(table(last_bin_countries), decreasing = TRUE)
 # Result: 44.3% without Belgium vs. 48% with it - close to the modern estimate (43.4%),
 #suggesting the apparent recent dip in the main chart is a sampling-composition artifact, not a real decline. 
   ```
+
+## Entry 3:
+- **Tool:** Claude (Sonnet 5)
+- **What it was used for:** I completed the Q1 plot visualization, and was ready to move onto Q2 which looks at are steppe associated groups associated with timing and geography of the spread of LP. So I asked if Claude could help me write a script to filter my data so I could see which groups are actually in my data before narrowing it down to specifically steppe associated.
+- **Output:**
+### Q2, Step 1: Find out which archaeological groups are actually in your data
+
+Before we can label anything "steppe-associated," we need to see what culture names AADR actually uses — not guess from memory. The literature (Haak et al. 2015, Allentoft et al. 2015) names specific archaeological cultures tied to the Bronze Age steppe migration: **Yamnaya** (the steppe population itself), **Corded Ware** and **Bell Beaker** (cultures that emerged in Europe shortly after, carrying substantial steppe ancestry), and a few steppe-homeland cultures that precede Yamnaya's westward spread, like **Catacomb**, **Srubnaya**, and **Sintashta**.
+
+Rather than scrolling through hundreds of group names by eye (error-prone — you'd likely miss variant spellings or underscores), we search programmatically:
+
+```r
+unique_groups <- sort(unique(ancient$group_id))
+length(unique_groups)
+
+# Known steppe-associated culture names from the ancient DNA literature
+# (Haak et al. 2015; Allentoft et al. 2015)
+steppe_keywords <- c("Yamnaya", "Corded_Ware", "CordedWare", "Bell_Beaker", "BellBeaker",
+                      "Catacomb", "Srubnaya", "Sintashta", "Afanasievo", "Potapovka",
+                      "Poltavka", "Steppe")
+
+steppe_candidates <- unique_groups[grepl(paste(steppe_keywords, collapse = "|"),
+                                          unique_groups, ignore.case = TRUE)]
+length(steppe_candidates)
+steppe_candidates
+```
+
+What this does: `grepl(..., ignore.case = TRUE)` checks every group name against all the keywords at once, catching variations in capitalization or underscore placement (e.g., "Corded_Ware" vs. "CordedWare") that a manual scan would likely miss.
+
+A couple of things to expect, so nothing here looks "wrong" when you see it:
+- `length(unique_groups)` is likely to be in the hundreds — AADR names groups very specifically (site + culture + period), so there are far more distinct labels than distinct cultures.
+- Not every match will cleanly belong to "steppe-associated" — a name like `Russia_Caucasus_Catacomb` might be a steppe-related culture but from a Caucasus location, and we already excluded Russia from your European dataset, so anything geographically Russian here won't appear anyway since we're filtering on `ancient` which is already `merged_europe`-derived. But something like `Hungary_BellBeaker` clearly belongs in Europe and in this category.
+
+Run that and paste back `steppe_candidates` — once we see the actual list, we'll go through it together and decide which names genuinely belong in your "steppe-associated" category versus which are false matches worth excluding, the same way we worked through the European country list.

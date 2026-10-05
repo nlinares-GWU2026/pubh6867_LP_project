@@ -165,9 +165,9 @@ bin_order_full <- c(bin_order, "Modern (Present)")
 freq_by_bin_full$bp_bin <- factor(freq_by_bin_full$bp_bin, levels = bin_order_full)
 freq_by_bin_full <- freq_by_bin_full[order(freq_by_bin_full$bp_bin), ]
 
-################ 
-##### PLOT #####
-################
+##################################################################################### 
+##### Q1 PLOT: HOW DID FREQ OF LP CHANGE ACROSS EUROPE FROM NEOLITHIC - MODERN? #####
+#####################################################################################
 library(ggplot2)
 
 bin_labels <- c(
@@ -216,3 +216,25 @@ sort(table(last_bin_countries), decreasing = TRUE)
 #suggesting the apparent recent dip in the main chart is a sampling-composition artifact, not a real decline. 
 
 
+
+#######################################################################################
+##### Q2 PLOT: ARE STEPPE ASSOCIATED GROUPS ASSOCIATED WITH TIMING AND GEOGRAPHY? #####
+#######################################################################################
+
+# Finding which archaeological groups are actually in my data before labeling as "steppe-associated"
+# Haak et al., 2015 and Allentoft et al., 2015 name specific archaeological cultures tied to Bronze Age steppe migration:
+# Yamnaya (steppe population itself), Corded Ware, Bell Beaker (which both emerged in Europe after)
+# Also a few cultures preceding Yamanaya west spread: Catacomb, Srubnaya, and Sintashta
+
+unique_groups <- sort(unique(ancient$group_id))
+length(unique_groups)
+
+# Known steppe-associated culture names from aDNA lit
+# (Haak et al., 2015 and Allentoft et al., 2015)
+steppe_keywords <- c("Yamnaya", "Corded_Ware", "CordedWare", "Bell_Beaker", "BellBeaker",
+                     "Catacomb", "Srubnaya", "Sintashta", "Afanasievo", "Potapovka",
+                     "Poltavka", "Steppe")
+steppe_candidates <- unique_groups[grepl(paste(steppe_keywords, collapse = "|"),
+                                         unique_groups, ignore.case = TRUE)]
+length(steppe_candidates)
+steppe_candidates
