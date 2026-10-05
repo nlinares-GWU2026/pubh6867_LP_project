@@ -262,3 +262,46 @@ table(ancient_cand$category, ancient_cand$bp_bin)
 # Any groups AADR flagged for exclusion
 sum(grepl("^Ignore_", ancient$group_id))
 
+##################################################################################
+##### REDESIGNING ANALYSIS (after discovering binning issues - see notes.md) #####
+##################################################################################
+# Instead of comparing side-by-side bars for every time period, mark the Steppe entry window
+# on main time series chart.
+# Focus on the single 4,000 - 5,000 BP time window where I actually have enough people. Create
+# bar chart comparing the 3 groups: Steppe-associated, Bell Beaker, and Other Europeans.
+# Overall allele counts in this era are very low. All 3 bars will likely sit near zero which 
+# suggests that early Steppe migrants were not bringing the LP gene in high numbers. 
+
+# Investigating numbers before building
+core_ids <- cand$group_id[cand$category == "Core steppe"] # Date range of the core steppe-associated indivs (for timing annotation)
+core_ind <- ancient[ancient$group_id %in% core_ids, ]
+summary(core_ind$date_mean_bp) # Pulls Core Steppe 
+
+# Snapshot: 4,000 - 5,000 BP bin, split into 3 groups
+bin4000 <- ancient[ancient$bp_bin == "4000", ]
+bin4000$q2_group <- ifelse(bin4000$group_id %in% cand$group_id[cand$category == "Core steppe"],
+                           "Steppe-associated",
+                    ifelse(bin4000$group_id %in% cand$group_id[cand$category == "Bell Beaker"],
+                           "Bell Beaker",
+                    ifelse(bin4000$group_id %in% cand$group_id[cand$category == "Outlier (exclude)"],
+                           "Outlier (excluded)",
+                           "Other European groups"))) # Other European groups means not labeled as steppe associated NOT THAT it has no steppe ancestry
+# Group individuals by their category and calculates total people, total copies of persistence allele, and overall allele frequency
+q2_table <- aggregate(A_count ~ q2_group, data = bin4000,
+                      FUN = function(x) c(n = length(x),
+                                          a_alleles = sum(x),
+                                          freq = sum(x) / (2 * length(x))))
+q2_table <- do.call(data.frame, q2_table)
+names(q2_table) <- c("q2_group", "n", "A_alleles", "freq")
+q2_table
+
+# Pseudohaploid check: if only 0 and 2 appear, each person is one allele read 
+table(bin4000$A_count)
+
+# Number of individuals carrying the allele in each group
+carriers <- aggregate(A_count ~ q2_group, data = bin4000,
+                      FUN = function(x) c(n = length(x), carriers = sum(x > 0)))
+carriers <- do.call(data.frame, carriers)
+names(carriers) <- c("q2_group", "n", "carriers")
+carriers$freq <- carriers$carriers / carriers$n
+carriers

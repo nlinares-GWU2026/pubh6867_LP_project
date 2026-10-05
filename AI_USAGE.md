@@ -333,7 +333,7 @@ The last table matters most. It shows how many individuals each choice affects, 
 **A heads-up on the chart plan:** Yamnaya, Catacomb and Corded Ware date to roughly the Bronze Age, so the core steppe group will probably fall into just two or three of your time bins. Your own Q1 table already shows the allele at about 0–1.5% across the 4,000–7,000 BP bins. So a near-zero result in the steppe groups is plausible. That would still be a real finding, because it argues against the steppe-origin explanation. The "steppe vs. other, within every bin" bar chart in the proposal may need narrowing to the bins where steppe groups actually exist. We'll decide that once we see the table.
 
 Paste back the category table, the group-by-bin table and the `Ignore_` count. Then we'll settle the Bell Beaker question.
-- **What I asked next:** A critical design decision was realized through analyzing the data for Q2, 122 of my 129 steppe individuals fell in a single bin (4000-5000) with only 6 in the next bin up (3000). So the current chart in my proposal cannot work as written. There is only one bin where the comparison has enough people in it. So instead of comparing side-by-side bars for every time period, I will mark the Steppe entry window (4000-5000 BP) on the main time series chart. It is expected to see that Steppe people arrived around 4000-500 BP but lactase persistence did not take off until around 3000 BP (lag of 1000 years). I will focus on a single 4000-5000 BP time window where I can actually have enough people. So creating a bar chart with steppe-associated, bell beaker, and other europeans will be the visualization. 
+- **What I asked next:** I pasted back the table and a critical design decision was realized through analyzing the data for Q2, 122 of my 129 steppe individuals fell in a single bin (4000-5000) with only 6 in the next bin up (3000). So the current chart in my proposal cannot work as written. There is only one bin where the comparison has enough people in it. So instead of comparing side-by-side bars for every time period, I will mark the Steppe entry window (4000-5000 BP) on the main time series chart. It is expected to see that Steppe people arrived around 4000-500 BP but lactase persistence did not take off until around 3000 BP (lag of 1000 years). I will focus on a single 4000-5000 BP time window where I can actually have enough people. So creating a bar chart with steppe-associated, bell beaker, and other europeans will be the visualization. 
 - **Output:**
 **Expectation check:** the whole 4,000-bin sits at about 1.5% in your Q1 table. That is roughly 24 copies of the allele across about 1,600. So all three bars will probably be near zero, and with counts that small, small differences can't be told apart from chance. If the steppe bar is near zero, that argues against the idea that steppe migrants brought the allele into Europe, and it's a legitimate finding. We should put the raw counts on the bars (for example "3 of 244") so readers see how little data each bar rests on.
 
@@ -370,3 +370,40 @@ q2_table
 One caveat to keep in mind when you read the table: "Other European groups" means *not labeled* steppe-associated, not *has no steppe ancestry*. A culture label is an imperfect stand-in for ancestry, which is the limitation your proposal already named.
 
 Paste back the date summary and `q2_table`.
+- **What I asked next:** After inspecting and the `q2_table` and pasting it into Claude, all 3 historical groups appeared to sit between 1.4% and 2.0% for LP in the 4,000 - 5,000 time window. Because ancient DNA samples are often sequenced at low coverage (one random allele read per person), it will get recorded as 0 (no allele) or 2 (has derived allele) - which means that if a number like 4 appears, it means that 2 total individuals out of 122 carry the allele. So because of this, the percentages remain the same, but the bar labels must change to say 2/122 insteadof 4/244 which would double count the evidence.
+- **Output:** 
+Before interpreting this, I'd like to check something in your table that affects how we report it.The three groups are indistinguishable. But something in your table changes how we should count the people behind each percentage.
+
+**The result:** all three groups sit at 1.4–2.0%, within a rounding error of each other.
+
+| Group | Frequency | Plausible range (95%) |
+|---|---|---|
+| Steppe-associated | 1.6% | 0.5–5.8% |
+| Bell Beaker | 2.0% | 0.7–5.8% |
+| Other European | 1.4% | 0.7–2.9% |
+
+Those ranges overlap almost completely, and exact tests comparing the groups give p-values of 0.69 or higher. So the data show no sign that steppe-associated groups carried the allele more often than their contemporaries. They also can't rule out a modest difference, because with so few carriers the ranges are wide. That is a real null result, and it's the honest way to word it. Those p-values and ranges come from my own side calculation, not from anything in your script, so treat them as a preview to reproduce in R, not as settled numbers.
+
+**The catch in your table.** Look at the `A_alleles` column: 6, 14, 4, 0. Every value is even. That fits the pseudohaploid point from your proposal. Most ancient individuals are represented by one randomly sampled read, which your `A_count` records as 0 or 2, never 1. If that holds here, each person is one allele observation, not two. The 4 "alleles" in the steppe group are really **2 people** carrying the allele, out of 122.
+
+This doesn't affect your percentages. The point estimates are identical either way, so Q1 stands. It affects the counts printed on the bar chart. I suggested labels like "3 of 244" last turn, and that would overstate the evidence by double-counting. The honest labels are **2 of 122, 3 of 147, and 7 of 494 individuals**. It also matters for the plausible ranges: the "wrongly" version I computed makes them look narrower than they should be.
+
+Confirm that this holds in your data:
+
+```r
+# Pseudohaploid check: if only 0 and 2 appear (no 1s), each person is one allele read
+table(bin4000$A_count)
+
+# Number of individuals carrying the allele in each group
+carriers <- aggregate(A_count ~ q2_group, data = bin4000,
+                      FUN = function(x) c(n = length(x), carriers = sum(x > 0)))
+carriers <- do.call(data.frame, carriers)
+names(carriers) <- c("q2_group", "n", "carriers")
+carriers$freq <- carriers$carriers / carriers$n
+carriers
+```
+
+Paste back the `table()` and `carriers` output. 
+- **What I asked next:** I pasted the final output of the `carriers` to have Claude confirm the allele counts before moving to the visualization. 
+- **Output:** 
+The check confirms it: 789 zeros, 12 twos, and no 1s. In this bin every person is a single allele read, so "2 of 122 individuals" is the honest way to state the steppe count. The totals line up too: 2 + 3 + 7 = 12 carriers.
