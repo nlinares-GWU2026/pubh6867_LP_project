@@ -236,5 +236,29 @@ steppe_keywords <- c("Yamnaya", "Corded_Ware", "CordedWare", "Bell_Beaker", "Bel
                      "Poltavka", "Steppe")
 steppe_candidates <- unique_groups[grepl(paste(steppe_keywords, collapse = "|"),
                                          unique_groups, ignore.case = TRUE)]
-length(steppe_candidates)
+length(steppe_candidates) # Length was 96
 steppe_candidates
+
+######################################################################
+##### Bell Beaker Mixed Ancestry & Quantifying Count Individuals #####
+######################################################################
+
+cand <- data.frame(group_id = steppe_candidates, stringsAsFactors = FALSE)
+
+# Outliers caught first so "Yamnaya-o" lands in outlier, not core
+cand$category <- ifelse(grepl("-o", cand$group_id), "Outlier (exclude)",
+                        ifelse(grepl("Scythian", cand$group_id), "Scythian (exclude)",
+                               ifelse(grepl("BellBeaker", cand$group_id), "Bell Beaker",
+                                      ifelse(grepl("Yamnaya|Catacomb|CordedWare", cand$group_id),
+                                             "Core steppe", "Other"))))
+table(cand$category) # Groups per category
+cand[cand$category == "Other", ] # Confirmed empty
+
+# Individuals per category, and which time bins they go into
+ancient_cand <- merge(ancient, cand, by = "group_id")
+table(ancient_cand$category)
+table(ancient_cand$category, ancient_cand$bp_bin)
+
+# Any groups AADR flagged for exclusion
+sum(grepl("^Ignore_", ancient$group_id))
+

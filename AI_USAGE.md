@@ -283,3 +283,90 @@ A couple of things to expect, so nothing here looks "wrong" when you see it:
 - Not every match will cleanly belong to "steppe-associated" — a name like `Russia_Caucasus_Catacomb` might be a steppe-related culture but from a Caucasus location, and we already excluded Russia from your European dataset, so anything geographically Russian here won't appear anyway since we're filtering on `ancient` which is already `merged_europe`-derived. But something like `Hungary_BellBeaker` clearly belongs in Europe and in this category.
 
 Run that and paste back `steppe_candidates` — once we see the actual list, we'll go through it together and decide which names genuinely belong in your "steppe-associated" category versus which are false matches worth excluding, the same way we worked through the European country list.
+- **What I asked next:** I pasted the 96 list of different archeological groups into Claude and it ran a quick analysis. It actually caught an issue regarding the Bell Beaker ancestry component from a paper by Olade et al., 2018 that the Bell Beaker population in Iberia lacked steppe affinity. Because of this it prompted me to make a decision between leaving the Bell Beaker in the steppe category, leave it out, or give it it's own third category of Bell Beaker (mixed ancestry). I decided to choose the third option despite making the chart busier.
+- **Output:** 
+Before I pick through this list, I want to check two things I'm about to rely on rather than going from memory: how Bell Beaker groups relate to steppe ancestry, and what the `-o` suffixes in AADR group names mean.You were right to paste the whole list. My keyword search was too loose, and it also leaned on a claim I made last message that I need to correct.
+
+**The correction:** I said Corded Ware and Bell Beaker both carry substantial steppe ancestry. That's true of Corded Ware as the literature frames it (the emergence of Corded Ware communities is argued to result from a population influx from the Eurasian steppe). It's too broad for Bell Beaker. Olalde et al. (2018) found that in Britain, the spread of the Beaker complex introduced high levels of steppe-related ancestry, and that in central Europe steppe-related ancestry was widespread. But in Iberia, the majority of Beaker-associated individuals lacked steppe affinity. Your own list even has a group literally named `France_BellBeaker_LowSteppe`. So for Bell Beaker, the culture label does not tell you the ancestry.
+
+**Three kinds of false positive in your 96 names:**
+
+1. **Outlier tags (`-o...` suffix).** Names like `Belgium_N-oSteppe`, `England_EarlyMedieval_Saxon-oSteppe` and `Spain_C-oSteppe` contain "Steppe" because an individual was flagged as an outlier, not because of a steppe culture. `-oNoSteppe` and `LowSteppe` mean the opposite. AADR's release notes say individuals marked "Ignore_" or "outlier" may be filtered out of primary analyses. The `-o` pattern fits that, but the page I found doesn't spell out the `-o` convention, so confirm it in the v66 README you downloaded.
+2. **Scythian groups** matched only because "ForestSteppe" is a geographic zone name. They are Iron Age, so a different and later question.
+3. **Bell Beaker** (about half the list), for the reason above.
+
+What's left is a clean core: **Yamnaya, Catacomb and Corded Ware** groups without an `-o` suffix.
+
+**The decision I'd like you to make:** what happens to Bell Beaker in Q2? The options are:
+- Put it in the steppe category. That's the simplest, but the research above argues against it.
+- Leave it out of Q2 entirely.
+- Give it its own third category, "Bell Beaker (mixed ancestry)". That's the most informative, but it makes the chart busier.
+
+I lean toward the third, but let's see the numbers first.
+
+**Step 1: classify the candidates and count individuals**
+
+```r
+cand <- data.frame(group_id = steppe_candidates, stringsAsFactors = FALSE)
+
+# Order matters: outliers are caught first so "Yamnaya-o" lands in Outlier, not Core
+cand$category <- ifelse(grepl("-o", cand$group_id), "Outlier (exclude)",
+                 ifelse(grepl("Scythian", cand$group_id), "Scythian (exclude)",
+                 ifelse(grepl("BellBeaker", cand$group_id), "Bell Beaker",
+                 ifelse(grepl("Yamnaya|Catacomb|CordedWare", cand$group_id),
+                        "Core steppe", "Other"))))
+
+table(cand$category)          # groups per category
+cand[cand$category == "Other", ]   # should be empty - anything here needs a look
+
+# Individuals per category, and which time bins they fall in
+ancient_cand <- merge(ancient, cand, by = "group_id")
+table(ancient_cand$category)
+table(ancient_cand$category, ancient_cand$bp_bin)
+
+# Any groups AADR itself flagged for exclusion?
+sum(grepl("^Ignore_", ancient$group_id))
+```
+
+The last table matters most. It shows how many individuals each choice affects, the same way the Russia/Turkey check showed us the real distribution.
+
+**A heads-up on the chart plan:** Yamnaya, Catacomb and Corded Ware date to roughly the Bronze Age, so the core steppe group will probably fall into just two or three of your time bins. Your own Q1 table already shows the allele at about 0–1.5% across the 4,000–7,000 BP bins. So a near-zero result in the steppe groups is plausible. That would still be a real finding, because it argues against the steppe-origin explanation. The "steppe vs. other, within every bin" bar chart in the proposal may need narrowing to the bins where steppe groups actually exist. We'll decide that once we see the table.
+
+Paste back the category table, the group-by-bin table and the `Ignore_` count. Then we'll settle the Bell Beaker question.
+- **What I asked next:** A critical design decision was realized through analyzing the data for Q2, 122 of my 129 steppe individuals fell in a single bin (4000-5000) with only 6 in the next bin up (3000). So the current chart in my proposal cannot work as written. There is only one bin where the comparison has enough people in it. So instead of comparing side-by-side bars for every time period, I will mark the Steppe entry window (4000-5000 BP) on the main time series chart. It is expected to see that Steppe people arrived around 4000-500 BP but lactase persistence did not take off until around 3000 BP (lag of 1000 years). I will focus on a single 4000-5000 BP time window where I can actually have enough people. So creating a bar chart with steppe-associated, bell beaker, and other europeans will be the visualization. 
+- **Output:**
+**Expectation check:** the whole 4,000-bin sits at about 1.5% in your Q1 table. That is roughly 24 copies of the allele across about 1,600. So all three bars will probably be near zero, and with counts that small, small differences can't be told apart from chance. If the steppe bar is near zero, that argues against the idea that steppe migrants brought the allele into Europe, and it's a legitimate finding. We should put the raw counts on the bars (for example "3 of 244") so readers see how little data each bar rests on.
+
+**Step 1: look at the actual numbers before building anything**
+
+```r
+# Date range of the core steppe-associated individuals (for the timing annotation)
+core_ids <- cand$group_id[cand$category == "Core steppe"]
+core_ind <- ancient[ancient$group_id %in% core_ids, ]
+summary(core_ind$date_mean_bp)
+
+# Snapshot: the 4,000-5,000 BP bin, split into the three groups
+bin4000 <- ancient[ancient$bp_bin == "4000", ]
+
+bin4000$q2_group <- ifelse(bin4000$group_id %in% cand$group_id[cand$category == "Core steppe"],
+                           "Steppe-associated",
+                    ifelse(bin4000$group_id %in% cand$group_id[cand$category == "Bell Beaker"],
+                           "Bell Beaker",
+                    ifelse(bin4000$group_id %in% cand$group_id[cand$category == "Outlier (exclude)"],
+                           "Outlier (excluded)",
+                           "Other European groups")))
+
+q2_table <- aggregate(A_count ~ q2_group, data = bin4000,
+                      FUN = function(x) c(n = length(x),
+                                          a_alleles = sum(x),
+                                          freq = sum(x) / (2 * length(x))))
+q2_table <- do.call(data.frame, q2_table)
+names(q2_table) <- c("q2_group", "n", "A_alleles", "freq")
+q2_table
+```
+
+`a_alleles` is the raw count of derived-allele copies in each group, which is what we'll print on the bars.
+
+One caveat to keep in mind when you read the table: "Other European groups" means *not labeled* steppe-associated, not *has no steppe ancestry*. A culture label is an imperfect stand-in for ancestry, which is the limitation your proposal already named.
+
+Paste back the date summary and `q2_table`.
