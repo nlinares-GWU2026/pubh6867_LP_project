@@ -12,4 +12,4 @@ After inspecting and the `q2_table` and pasting it into Claude, all 3 historical
 I pasted the final output of the `carriers` to have Claude confirm the allele counts before moving to the visualization. Claude's reponse was: The check confirms it: 789 zeros, 12 twos, and no 1s. In this bin every person is a single allele read, so "2 of 122 individuals" is the honest way to state the steppe count. The totals line up too: 2 + 3 + 7 = 12 carriers.
 
 ## Current: Q2 
-7. 
+7. UPDATE WITH LAST 2 CHATS

@@ -407,3 +407,32 @@ Paste back the `table()` and `carriers` output.
 - **What I asked next:** I pasted the final output of the `carriers` to have Claude confirm the allele counts before moving to the visualization. 
 - **Output:** 
 The check confirms it: 789 zeros, 12 twos, and no 1s. In this bin every person is a single allele read, so "2 of 122 individuals" is the honest way to state the steppe count. The totals line up too: 2 + 3 + 7 = 12 carriers.
+- **What I asked next:** I asked Claude to help me produce a script that the next visualization will use that turns the new and necessary information into a table that I will feed to the chart. I needed to drop the outliers from the above code, include the Wilson test (for error bars on small numbers) for eventual error bar inclusion in my chart, order the groups as "Steppe, Bell Beaker, other, etc.", and incorporate a pairwise comparison (Fischer's test for small numbers) to see if the Steppe were actually the ones to introduce this rise compared to other groups. 
+- **Output:**
+```r
+# Drop the 38 AADR-flagged outliers (0 carriers, so exclusion cannot hide a steppe signal)
+q2_plot <- carriers[carriers$q2_group != "Outlier (excluded)", ]
+rownames(q2_plot) <- q2_plot$q2_group
+
+# 95% Wilson score ranges: each person counts as ONE allele read (pseudohaploid),
+# so the sample size for uncertainty is n individuals, not 2n
+ci <- t(mapply(function(k, n) prop.test(k, n, correct = FALSE)$conf.int,
+               q2_plot$carriers, q2_plot$n))
+q2_plot$lower <- ci[, 1]
+q2_plot$upper <- ci[, 2]
+q2_plot$label <- paste0(q2_plot$carriers, " of ", q2_plot$n, "\nindividuals")
+
+# Fix the left-to-right order of the bars
+q2_plot$q2_group <- factor(q2_plot$q2_group,
+                           levels = c("Steppe-associated", "Bell Beaker", "Other European groups"))
+q2_plot
+
+# Pairwise comparisons (Fisher's exact test: suited to very small counts)
+cmp <- function(g1, g2) {
+  k <- q2_plot[c(g1, g2), "carriers"]
+  n <- q2_plot[c(g1, g2), "n"]
+  fisher.test(cbind(k, n - k))$p.value
+}
+cmp("Steppe-associated", "Other European groups")  # expect ~0.69
+cmp("Bell Beaker", "Other European groups")        # expect ~0.70
+cmp("Steppe-associated", "Bell Beaker")            # expect ~1.00

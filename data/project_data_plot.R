@@ -305,3 +305,62 @@ carriers <- do.call(data.frame, carriers)
 names(carriers) <- c("q2_group", "n", "carriers")
 carriers$freq <- carriers$carriers / carriers$n
 carriers
+
+########################
+##### Q2 CONTINUED #####
+########################
+
+# Drop the 38 AADR-flagged outliers (0 carriers, so exclusion cannot hide steppe signal)
+q2_plot <- carriers[carriers$q2_group != "Outlier (excluded)", ]
+rownames(q2_plot) <- q2_plot$q2_group
+
+# 95% Wilson score ranges: each person counts as 1 allele read (pseudohaploid),
+# so the sample size for uncertainty is n individuals, not 2n
+ci <- t(mapply(function(k,n) prop.test(k, n, correct = FALSE)$conf.int,
+               q2_plot$carriers, q2_plot$n))
+q2_plot$lower <-ci[, 1]
+q2_plot$upper <-ci[, 2]
+q2_plot$label <- paste0(q2_plot$carriers, " of ", q2_plot$n, "\nindividuals")
+
+# Left to right order of bars fixed
+q2_plot$q2_group <- factor(q2_plot$q2_group,
+                           levels = c("Steppe-associated", "Bell Beaker", "Other European groups"))
+
+# Pairwise comparison (Fischers test suited to very small counts)
+cmp <- function(g1,g2) {
+  k <- q2_plot[c(g1, g2), "carriers"]
+  n <- q2_plot[c(g1, g2), "n"]
+  fisher.test(cbind(k, n - k))$p.value
+}
+cmp("Steppe-associated", "Other European groups") # 0.6945441
+cmp("Bell Beaker", "Other European groups") # 0.7035052
+cmp("Steppe-associated", "Bell Beaker") # 1
+# Would be common by chance alone - large p-values
+
+library(ggplot2)
+
+q2_caption <- paste(strwrap(
+  "Lines show the range of values consistent with the data (95% interval). They overlap heavily, so the groups cannot be told apart. Bell Beaker groups are shown separately because their steppe ancestry varies by region (Olalde et al. 2018). Individuals flagged as outliers in AADR (n = 38) are excluded. Data: Allen Ancient DNA Resource (AADR) v66.p1.",
+  width = 110), collapse = "\n")
+
+ggplot(q2_plot, aes(x = q2_group, y = freq, fill = q2_group)) +
+  geom_col(width = 0.5) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.15, linewidth = 1.0) +
+  geom_text(aes(y = upper, label = label), vjust = -0.5, size = 4.5)+
+  scale_fill_manual(values = c("Steppe-associated" = "orange",
+                               "Bell Beaker" = "steelblue",
+                               "Other European groups" = "lightgrey")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     expand = expansion(mult = c(0, 0.25))) +
+  labs(
+    title = "No sign that Steppe-associated Groups carried the \nLactase Persistence Allele more often",
+    subtitle = "European individuals dated 4,000-5,000 years ago (around Late Neolithic - Early Bronze Age)",
+    x = "Group (by archaeological culture label)",
+    y = "Allele frequency",
+    caption = q2_caption
+  ) +
+  theme_minimal(base_size = 15) +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 15),
+        plot.caption = element_text(hjust = 0, size = 10))
+ggsave("figures/q2_steppe_comparison.png", width = 10, height = 6.5, dpi = 300)
