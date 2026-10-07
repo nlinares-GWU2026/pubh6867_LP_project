@@ -165,9 +165,9 @@ bin_order_full <- c(bin_order, "Modern (Present)")
 freq_by_bin_full$bp_bin <- factor(freq_by_bin_full$bp_bin, levels = bin_order_full)
 freq_by_bin_full <- freq_by_bin_full[order(freq_by_bin_full$bp_bin), ]
 
-##################################################################################### 
-##### Q1 PLOT: HOW DID FREQ OF LP CHANGE ACROSS EUROPE FROM NEOLITHIC - MODERN? #####
-#####################################################################################
+######################################################################################## 
+##### Q1 V1 PLOT: HOW DID FREQ OF LP CHANGE ACROSS EUROPE FROM NEOLITHIC - MODERN? #####
+########################################################################################
 library(ggplot2)
 
 bin_labels <- c(
@@ -185,7 +185,7 @@ bin_labels <- c(
   "Modern (Present)" = "Present\nDay"
 )
 
-ggplot(freq_by_bin_full, aes(x = bp_bin, y = freq, group = 1)) +
+p_q1 <- ggplot(freq_by_bin_full, aes(x = bp_bin, y = freq, group = 1)) +
   geom_line(color = "steelblue", linewidth = 1) +
   geom_point(aes(size = n, color = period_type, shape = period_type), alpha = 0.85) +
   scale_size(range = c(5, 15), trans = "sqrt", name = "Sample size (n)") +
@@ -217,9 +217,9 @@ sort(table(last_bin_countries), decreasing = TRUE)
 
 
 
-#######################################################################################
-##### Q2 PLOT: ARE STEPPE ASSOCIATED GROUPS ASSOCIATED WITH TIMING AND GEOGRAPHY? #####
-#######################################################################################
+##########################################################################################
+##### Q2 V1 PLOT: ARE STEPPE ASSOCIATED GROUPS ASSOCIATED WITH TIMING AND GEOGRAPHY? #####
+##########################################################################################
 
 # Finding which archaeological groups are actually in my data before labeling as "steppe-associated"
 # Haak et al., 2015 and Allentoft et al., 2015 name specific archaeological cultures tied to Bronze Age steppe migration:
@@ -306,9 +306,9 @@ names(carriers) <- c("q2_group", "n", "carriers")
 carriers$freq <- carriers$carriers / carriers$n
 carriers
 
-########################
-##### Q2 CONTINUED #####
-########################
+###########################
+##### Q2 V1 CONTINUED #####
+###########################
 
 # Drop the 38 AADR-flagged outliers (0 carriers, so exclusion cannot hide steppe signal)
 q2_plot <- carriers[carriers$q2_group != "Outlier (excluded)", ]
@@ -353,7 +353,7 @@ ggplot(q2_plot, aes(x = q2_group, y = freq, fill = q2_group)) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1),
                      expand = expansion(mult = c(0, 0.25))) +
   labs(
-    title = "No sign that Steppe-associated Groups carried the \nLactase Persistence Allele more often",
+    title = "No Sign That Steppe-associated Groups Carried the \nLactase Persistence Allele More Often",
     subtitle = "European individuals dated 4,000-5,000 years ago (around Late Neolithic - Early Bronze Age)",
     x = "Group (by archaeological culture label)",
     y = "Allele frequency",
@@ -364,3 +364,41 @@ ggplot(q2_plot, aes(x = q2_group, y = freq, fill = q2_group)) +
         plot.title = element_text(face = "bold", size = 15),
         plot.caption = element_text(hjust = 0, size = 10))
 ggsave("figures/q2_steppe_comparison.png", width = 10, height = 6.5, dpi = 300)
+
+
+
+#########################################
+##### Q2 V2: Timing (Steppe Window) #####
+#########################################
+# Where the "4000" bin (4,000-5,000 BP) on the x-axis -> a discrete axis counts its categories 
+# 1, 2, 3, ..., so look up the position 
+x_steppe <- which(levels(freq_by_bin_full$bp_bin) == "4000")
+x_steppe # 7 
+
+# How many core steppe fall into that bin
+pct_in_bin <- round(100 * mean(core_ind$bp_bin == "4000"))
+pct_in_bin # 95 indiv
+nrow(core_ind) # 129 rows
+
+p_q2_timing <- p_q1 + annotate("rect", xmin = x_steppe - 0.5, xmax = x_steppe + 0.5,
+                               ymin = -Inf, ymax = Inf, fill = "orange", alpha = 0.2) +
+  annotate("text", x = x_steppe, y = 0.40, label = paste0("Steppe-associated\ngroups appear\n(", pct_in_bin, "% dated here)"),
+           size = 4.5, lineheight = 0.95) +
+  labs(
+    title = "The Alelle Was Still Rare When Steppe-Associated\n Groups Appear; the Steep Rise Appears Later",
+    subtitle = "Same data as the previous figure, with the steppe-associated period shaded",
+    caption = paste0("Shaded band: the 1,000-year period (4,000-5,000 BP) holding ", pct_in_bin, "% of steppe-associated individuals (Yamnaya, Catacomb, Corded Ware: n = ", nrow(core_ind), ").\n
+                     Data: Allen Ancient DNA Resource (AADR) v66.p1 ", "Point size reflects the sample size (n) per bin.")
+  
+  )
+
+p_q2_timing
+ggsave("figures/q2_steppe_timing.png", plot = p_q2_timing, width = 10, height = 6, dpi = 300)
+
+
+
+###################################
+##### Q1 V2: GEOGRAPHICAL MAP #####
+###################################
+
+library(maps)
