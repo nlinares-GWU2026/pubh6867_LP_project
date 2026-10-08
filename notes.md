@@ -18,4 +18,7 @@
 
 ## Current: Q2 
 12: Q1 V2: Geographic Map. 6 bins that align with the binning from Q1 V1 when the Steppe were introduced. 
-One thing to note, many of the coordinates showed rounded approximations of coordinates and should be described as such - approximate locations. Many individuals will also stack on the same dot, so they will be grouped into one dot per site. 3 lacked coordinates so they were excluded. Sampling is dense in the central Europe and British Isles and thin in the North East based off of the preliminary skeleton. I chose to go with size for the amount of individuals sampeled per location and the color to show at least one carrier of the LP allele. 
+One thing to note, many of the coordinates showed rounded approximations of coordinates and should be described as such - approximate locations. Many individuals will also stack on the same dot, so they will be grouped into one dot per site. 3 lacked coordinates so they were excluded. Sampling is dense in the central Europe and British Isles and thin in the North East based off of the preliminary skeleton. I chose to go with size for the amount of individuals sampeled per location and the color to show at least one carrier of the LP allele. White bordering was added for the visibility. The pattern of the dots fits the trend the Q1 time-series chart carries. The 5,000 BP panel shows almost every dot is no carrier with one green dot that looks like France. Green becomes common from 2,000-3,000 BP and dominates by 1,000-2,000. *The share of the green dots is not the allele frequency, the Q1 time-series chart shows that.*
+
+
+# All colors are chosen to be color blind friendly

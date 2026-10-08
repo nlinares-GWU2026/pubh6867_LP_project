@@ -204,6 +204,7 @@ p_q1 <- ggplot(freq_by_bin_full, aes(x = bp_bin, y = freq, group = 1)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   guides(color = guide_legend(title = "Sample Type"),
          shape = guide_legend(title = "Sample Type"))
+p_q1
 ggsave("figures/q1_lactase_timeseries.png", width = 10, height = 6, dpi = 300)
 #############################
 ##### SENSITIVITY CHECK #####
@@ -369,7 +370,7 @@ ggsave("figures/q2_steppe_comparison.png", width = 10, height = 6.5, dpi = 300)
 
 #########################################
 ##### Q2 V2: Timing (Steppe Window) #####
-#########################################
+##################  #######################
 # Where the "4000" bin (4,000-5,000 BP) on the x-axis -> a discrete axis counts its categories 
 # 1, 2, 3, ..., so look up the position 
 x_steppe <- which(levels(freq_by_bin_full$bp_bin) == "4000")
@@ -408,7 +409,7 @@ sum(is.na(ancient$latitude)) # European archaeological individuals with NO coord
 nrow(ancient) # Total European archaeological individuals
 
 ancient_map <- ancient[!is.na(ancient$latitude) & !is.na(ancient$longitude), ]
-nrow(ancient_map)
+nrow(ancient_map) # 7147 (7150 individuals minus 3 with no coordinates)
 
 # Assign each individual to 1,000 year period (same bins as the Q1 chart)
 # right = FALSE makes the bins [0,1000), [1,000,2,000), ... exactly like floor(date/1000)
@@ -423,15 +424,70 @@ ancient_map$period <- factor(ancient_map$period, levels = rev(levels(ancient_map
 table(ancient_map$period) # Indivs per period
 length(unique(paste(ancient_map$latitude, ancient_map$longitude))) # The distinct sites
 
-# Preliminary idea 
+
+
+### Preliminary idea/structure 
 outline <- map_data("world")
 
 p_q1_map <- ggplot() +
   geom_polygon(data = outline, aes(x = long, y = lat, group = group),
-               fill = "grey93", colour = "grey64", linewidth = 0.25) +
+               fill = "lightgrey", colour = "grey", linewidth = 0.25) +
   geom_point(data = ancient_map, aes(x = longitude, y = latitude), size = 0.5,
-             alpha = 0.35, colour = "grey15") +
+             alpha = 0.35, colour = "black") +
   coord_quickmap(xlim = c(-25, 45), ylim = c(35, 75)) +
   facet_wrap(~ period, nrow = 2) +
   theme_minimal(base_size = 12)
 p_q1_map
+
+
+
+### Map
+names(ancient_map) # A_count holds the LP allele count
+
+# IF carrier of LP, A_count is > 0 
+ancient_map$carrier <- ancient_map$A_count > 0 
+ancient_map$one <- 1 # Counting people per site 
+
+# One row per location x period, how many people (n) and how many carriers among them
+site_period <- aggregate(cbind(one, carrier) ~ latitude + longitude + period,
+                         data = ancient_map, FUN = sum)
+
+names(site_period)[names(site_period) == "one"] <- "n"
+names(site_period)[names(site_period) == "carrier"] <- "carriers"
+
+site_period$carrier_found <- factor(ifelse(site_period$carriers > 0,
+                                           "Carrier found", "No carrier found"),
+                                    levels = c("No carrier found", "Carrier found"))
+
+# Sorting so colored dots are drawn on top of the grey
+site_period <- site_period[order(site_period$carrier_found), ]
+
+# Checking
+sum(site_period$n) # 7147 (Matches the 7150 individuals and 3 with no coords)
+nrow(site_period) # Number of dots acrosss all 6 panels - 1785
+table(site_period$carrier_found) # How many dots are grey vs colored (Grey =  1331 vs Colored = 454)
+
+p_q1_map <- ggplot() +
+  geom_polygon(data = outline, aes(x = long, y = lat, group = group),
+               fill = "lightgrey", color = "grey", linewidth = 0.25) +
+  geom_point(data = site_period,
+             aes(x = longitude, y = latitude, size = n, fill = carrier_found),
+             shape = 21, colour = "white", stroke = 0.35, alpha = 0.95) +
+  scale_fill_manual(values = c("No carrier found" = "#CC79A7",
+                                 "Carrier found"    = "#117733"),
+                      name = NULL) +
+  scale_size(range = c(1.75, 9), breaks = c(1, 5, 20),
+                  name = "People sampled \nat this location") +
+  guides(fill = guide_legend(order = 1, override.aes = list(size = 4)),
+         size = guide_legend(order = 2, override.aes = list(fill = "grey50"))) + 
+  coord_quickmap(xlim = c(-25, 45), ylim = c(35, 75)) +
+  facet_wrap(~ period, nrow = 2) +
+  labs(title = "Where the lactase persistence allele turns up across Europe",
+       subtitle = "Each dot is one approximate location; green means at least one person there carried the allele",
+       x = "Longitude (degrees)", y = "Latitude (degrees)",
+       caption = "Data: Allen Ancient DNA Resource v66.p1. Locations are approximate. Sampling is uneven, so blank areas do not mean no one lived there.\n3 individuals without coordinates are not shown.") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom",
+        panel.grid.minor = element_blank())
+p_q1_map
+ggsave("figures/q1_map.png", plot = p_q1_map, width = 15, height = 10, dpi = 300)

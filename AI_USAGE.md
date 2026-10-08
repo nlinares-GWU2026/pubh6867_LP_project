@@ -1,3 +1,5 @@
+# AI USAGE DOCUMENTATION
+Every answer Claude provided to the development of this project was pasted below as well as the reason it was used (my own words summarized for brevity). 
 ## Entry 1: 
 - **Tool:** Claude (Sonnet 5)
 - **What it was used for:** It was used to help me pull and clean the AADR data, run PLINK conversion through WSL2, decode how to interpret the converted PLINK file, clean, merge, subset, and time-bin the data (referencing literature for time-binning), section out modern populations, restructure bins based on the results of the presence of LP based on the pre 10000 BP populations (would disrupt the signal), validate data aggregation, and confirm alignment with current literature.
@@ -466,4 +468,24 @@ ancient_map$period <- cut(ancient_map$date_mean_bp,
                           right = FALSE,
                           labels = c("0-1,000 BP", "1,000-2,000 BP", "2,000-3,000 BP",
                                      "3,000-4,000 BP", "4,000-5,000 BP", "5,000+ BP"))
+```
+
+## Entry 6:
+- **Tool:** Claude (Sonnet 5.5)
+- **What I was doing:** I needed help organizing my LP individuals into a way that held one row per site and period so I could aggregate the points on my map plot. 
+- **Output:** 
+```r
+# A person is a "carrier" if their one allele read was the LP allele (A_count > 0)
+ancient_map$carrier <- ancient_map$A_count > 0
+ancient_map$one     <- 1     # helper column, so we can count people per site
+
+# One row per location x period: how many people (n) and how many carriers
+site_period <- aggregate(cbind(one, carrier) ~ latitude + longitude + period,
+                         data = ancient_map, FUN = sum)
+names(site_period)[names(site_period) == "one"]     <- "n"
+names(site_period)[names(site_period) == "carrier"] <- "carriers"
+
+site_period$carrier_found <- factor(ifelse(site_period$carriers > 0,
+                                           "Carrier found", "No carrier found"),
+                                    levels = c("No carrier found", "Carrier found"))
 ```
