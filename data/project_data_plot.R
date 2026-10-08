@@ -186,10 +186,10 @@ bin_labels <- c(
 )
 
 p_q1 <- ggplot(freq_by_bin_full, aes(x = bp_bin, y = freq, group = 1)) +
-  geom_line(color = "steelblue", linewidth = 1) +
+  geom_line(color = "#0072B2", linewidth = 1) +
   geom_point(aes(size = n, color = period_type, shape = period_type), alpha = 0.85) +
   scale_size(range = c(5, 15), trans = "sqrt", name = "Sample size (n)") +
-  scale_color_manual(values = c("Archaeological" = "steelblue", "Modern" = "firebrick"), name = "Sample type") +
+  scale_color_manual(values = c("Archaeological" = "#0072B2", "Modern" = "#CC79A7"), name = "Sample type") +
   scale_shape_manual(values = c("Archaeological" = 16, "Modern" = 17), name = "Sample Type") +
   scale_x_discrete(labels = bin_labels) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, NA)) +
@@ -347,8 +347,8 @@ ggplot(q2_plot, aes(x = q2_group, y = freq, fill = q2_group)) +
   geom_col(width = 0.5) +
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.15, linewidth = 1.0) +
   geom_text(aes(y = upper, label = label), vjust = -0.5, size = 4.5)+
-  scale_fill_manual(values = c("Steppe-associated" = "orange",
-                               "Bell Beaker" = "steelblue",
+  scale_fill_manual(values = c("Steppe-associated" = "#E69F00",
+                               "Bell Beaker" = "#56B4E9",
                                "Other European groups" = "lightgrey")) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1),
                      expand = expansion(mult = c(0, 0.25))) +
@@ -402,3 +402,36 @@ ggsave("figures/q2_steppe_timing.png", plot = p_q2_timing, width = 10, height = 
 ###################################
 
 library(maps)
+
+# Only archeological individuals with coordinates can go on the map (modern ref have no excavation site)
+sum(is.na(ancient$latitude)) # European archaeological individuals with NO coordinates
+nrow(ancient) # Total European archaeological individuals
+
+ancient_map <- ancient[!is.na(ancient$latitude) & !is.na(ancient$longitude), ]
+nrow(ancient_map)
+
+# Assign each individual to 1,000 year period (same bins as the Q1 chart)
+# right = FALSE makes the bins [0,1000), [1,000,2,000), ... exactly like floor(date/1000)
+ancient_map$period <-cut(ancient_map$date_mean_bp,
+                         breaks = c(0, 1000, 2000, 3000, 4000, 5000, Inf),
+                         right = FALSE,
+                         labels = c("0-1,000 BP", "1,000-2,000 BP", "2,000-3,000 BP",
+                                    "3,000-4,000 BP", "4,000-5,000 BP", "5,000+ BP"))
+# Oldest period first so panels read in chronological order
+ancient_map$period <- factor(ancient_map$period, levels = rev(levels(ancient_map$period)))
+
+table(ancient_map$period) # Indivs per period
+length(unique(paste(ancient_map$latitude, ancient_map$longitude))) # The distinct sites
+
+# Preliminary idea 
+outline <- map_data("world")
+
+p_q1_map <- ggplot() +
+  geom_polygon(data = outline, aes(x = long, y = lat, group = group),
+               fill = "grey93", colour = "grey64", linewidth = 0.25) +
+  geom_point(data = ancient_map, aes(x = longitude, y = latitude), size = 0.5,
+             alpha = 0.35, colour = "grey15") +
+  coord_quickmap(xlim = c(-25, 45), ylim = c(35, 75)) +
+  facet_wrap(~ period, nrow = 2) +
+  theme_minimal(base_size = 12)
+p_q1_map

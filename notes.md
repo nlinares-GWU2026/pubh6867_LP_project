@@ -18,3 +18,4 @@
 
 ## Current: Q2 
 12: Q1 V2: Geographic Map. 6 bins that align with the binning from Q1 V1 when the Steppe were introduced. 
+One thing to note, many of the coordinates showed rounded approximations of coordinates and should be described as such - approximate locations. Many individuals will also stack on the same dot, so they will be grouped into one dot per site. 3 lacked coordinates so they were excluded. Sampling is dense in the central Europe and British Isles and thin in the North East based off of the preliminary skeleton. I chose to go with size for the amount of individuals sampeled per location and the color to show at least one carrier of the LP allele. 

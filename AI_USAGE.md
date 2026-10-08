@@ -407,7 +407,7 @@ Paste back the `table()` and `carriers` output.
 - **What I asked next:** I pasted the final output of the `carriers` to have Claude confirm the allele counts before moving to the visualization. 
 - **Output:** 
 The check confirms it: 789 zeros, 12 twos, and no 1s. In this bin every person is a single allele read, so "2 of 122 individuals" is the honest way to state the steppe count. The totals line up too: 2 + 3 + 7 = 12 carriers.
-- **What I asked next:** I asked Claude to help me produce a script that the next visualization will use that turns the new and necessary information into a table that I will feed to the chart. I needed to drop the outliers from the above code, include the Wilson test (for error bars on small numbers) for eventual error bar inclusion in my chart so the viewer can distinguish the small amounts instead of just the bars themselves which can be misleading, order the groups as "Steppe, Bell Beaker, other, etc.", and incorporate a pairwise comparison (Fischer's test for small numbers) to see if the Steppe were actually the ones to introduce this rise compared to other groups. 
+- **What I asked next:** I asked Claude to help me produce a script that the next visualization will use that turns the new and necessary information into a table that I will feed to the chart. I needed to drop the outliers from the above code, include the Wilson test (for error bars on small numbers) for eventual error bar inclusion in my chart so the viewer can distinguish the small amounts instead of just the bars themselves which can be misleading, order the groups as "Steppe, Bell Beaker, other, etc.", and incorporate a pairwise comparison (Fischer's exact test for small numbers) to see if the Steppe were actually the ones to introduce this rise compared to other groups (examining p-values). 
 - **Output:**
 ```r
 # Drop the 38 AADR-flagged outliers (0 carriers, so exclusion cannot hide a steppe signal)
@@ -436,3 +436,34 @@ cmp <- function(g1, g2) {
 cmp("Steppe-associated", "Other European groups")  # expect ~0.69
 cmp("Bell Beaker", "Other European groups")        # expect ~0.70
 cmp("Steppe-associated", "Bell Beaker")            # expect ~1.00
+## Entry 4:
+- **Tool:** Claude (Sonnet 5.5)
+- **What it was used for:** I needed a few lines of code to figure out how to determine where to place my shading on the second plot to answer Q2 instead of guessing
+- **Output:**
+```r
+# Where is the "4000" bin (4,000-5,000 BP) on the x-axis? A discrete axis counts
+# its categories 1, 2, 3, ..., so we look up the position instead of guessing it
+x_steppe <- which(levels(freq_by_bin_full$bp_bin) == "4000")
+x_steppe  # expect 7
+```
+## Entry 5:
+- **Tool:** Claude (Sonnet 5.5)
+- **What it was used for:** I needed help organizing the data to create the chart. I asked Claude to only include individuals with coordinates (obviously those with no coordinates cannot go on a map), then assign those individuals with coordinates into a 1,000 year period (the same bins as Q1).
+- **Output:**
+```r 
+# Only archaeological individuals with coordinates can go on the map
+# (the modern reference panels have no excavation site)
+sum(is.na(ancient$latitude))   # European archaeological individuals with NO coordinates
+nrow(ancient)                  # total European archaeological individuals
+
+ancient_map <- ancient[!is.na(ancient$latitude) & !is.na(ancient$longitude), ]
+nrow(ancient_map)
+
+# Assign each individual to a 1,000-year period (same bins as the Q1 chart).
+# right = FALSE makes the bins [0,1000), [1000,2000), ... exactly like floor(date/1000)
+ancient_map$period <- cut(ancient_map$date_mean_bp,
+                          breaks = c(0, 1000, 2000, 3000, 4000, 5000, Inf),
+                          right = FALSE,
+                          labels = c("0-1,000 BP", "1,000-2,000 BP", "2,000-3,000 BP",
+                                     "3,000-4,000 BP", "4,000-5,000 BP", "5,000+ BP"))
+```
