@@ -489,3 +489,46 @@ site_period$carrier_found <- factor(ifelse(site_period$carriers > 0,
                                            "Carrier found", "No carrier found"),
                                     levels = c("No carrier found", "Carrier found"))
 ```
+## Entry 7: 
+- **Tool:** Claude (Sonnet 5.5)
+- **What I was doing:** I asked if Claude could write me a script to add error bars to the time series (Q1 Plot1) chart. 
+- **Output:**
+```r
+# 95% Wilson ranges per bin. Each person counts as one allele read (pseudohaploid),
+# so the sample size for uncertainty is n individuals, not 2n
+k_bin  <- round(freq_by_bin_full$freq * freq_by_bin_full$n)   # carriers per bin
+ci_bin <- t(mapply(function(k, n) suppressWarnings(prop.test(k, n, correct = FALSE)$conf.int),
+                   k_bin, freq_by_bin_full$n))
+freq_by_bin_full$lower <- ci_bin[, 1]
+freq_by_bin_full$upper <- ci_bin[, 2]
+freq_by_bin_full[, c("bp_bin", "n", "freq", "lower", "upper")]   # check: lower < freq < upper everywhere
+```
+
+## Entry 8:
+- **Tool:** Claude (Sonnet 5.5)
+- **What I was doing:** I pasted my final code to Claude for a quick code hygiene check and final test before considering my plots finished with a summary of the changes I had made and what it was looking like before.
+- **Output:**
+```r
+This is exactly what the final restart-and-run test is for.
+
+The rest of your cleaned script looks right to me. The libraries and `dir.create` are at the top, the dead code is gone, the sections are in a sensible order, the error bars are in, and the Modern triangle is `#333333`. I haven't run any of it.
+
+**One more thing.** The Belgium check (lines 167–170) still only prints a table of countries. The "44.3% without Belgium vs 48%" numbers exist only in a comment, so the script can't reproduce them. Add this right after line 168:
+
+```r
+# Frequency of the 0-1,000 BP bin with and without Belgium, next to the modern value
+last_bin   <- ancient[ancient$bp_bin == "0", ]
+no_belgium <- last_bin[last_bin$political_entity != "Belgium", ]
+round(c(with_Belgium    = sum(last_bin$A_count)   / (2 * nrow(last_bin)),
+        without_Belgium = sum(no_belgium$A_count) / (2 * nrow(no_belgium)),
+        modern          = modern_freq), 3)
+```
+
+You should see about 0.480, 0.443 and 0.434, matching what we found earlier. If you see different numbers, tell me.
+
+**Final test.** After these three edits:
+1. In RStudio, go to **Session → Restart R**. This clears everything, so the script can't lean on leftover objects.
+2. Click **Source** (top right of the script window), or press Ctrl+Shift+S, so the whole script runs from the top.
+3. Check that there are no red errors and that the four PNGs in `figures/` have a new modification time. Then open them and look at each.
+
+Send me any error text or the screenshots of the new Figures 1 and 4, and then we can commit.
