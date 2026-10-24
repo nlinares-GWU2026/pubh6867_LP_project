@@ -531,4 +531,113 @@ You should see about 0.480, 0.443 and 0.434, matching what we found earlier. If 
 2. Click **Source** (top right of the script window), or press Ctrl+Shift+S, so the whole script runs from the top.
 3. Check that there are no red errors and that the four PNGs in `figures/` have a new modification time. Then open them and look at each.
 
-Send me any error text or the screenshots of the new Figures 1 and 4, and then we can commit.
+Send me any error text or the screenshots of the new Figures 1 and 4.
+
+## Entry 9:
+-**Tool:** Claude (Sonnet 5.5)
+-**What I was doing:** Responding to instructor feeback on my proposal regarding grouping countries into regional trajectories (Northern & Western, Central & Eastern, Southern). I asked for code help grouping the into these country groups.  Pasting the output of `table(bin4000$political_entity, bin4000$q2_group)` I asked Claude to help me code a sensitivity check that restricts analysis to only countires that have both Steppe-associated individuals AND non-Steppe European individuals present in the 4,000-5,000 BP time window. I also asked for robustness check.  
+- **Output:** 
+The check. Compare the two groups only inside the 10 shared countries (117 steppe vs 170 “other” people).
+```r
+# Check: compare only within countries that have BOTH steppe-associated and other people
+b <- bin4000[bin4000$q2_group %in% c("Steppe-associated", "Other European groups"), ]
+tab <- table(b$political_entity, b$q2_group)
+shared <- rownames(tab)[tab[, "Steppe-associated"] > 0 & tab[, "Other European groups"] > 0]
+shared                                  # should list 10 countries
+
+b_shared <- b[b$political_entity %in% shared, ]
+restricted <- aggregate(A_count ~ q2_group, data = b_shared,
+                        FUN = function(x) c(n = length(x), carriers = sum(x > 0)))
+restricted <- do.call(data.frame, restricted)
+names(restricted) <- c("q2_group", "n", "carriers")
+restricted$freq <- restricted$carriers / restricted$n
+
+ci_r <- t(mapply(function(k, n) suppressWarnings(prop.test(k, n, correct = FALSE)$conf.int),
+                 restricted$carriers, restricted$n))
+restricted$lower <- ci_r[, 1]
+restricted$upper <- ci_r[, 2]
+restricted
+
+fisher.test(cbind(restricted$carriers, restricted$n - restricted$carriers))$p.value
+``` 
+Each region against the pooled trajectory.
+```r
+#############################################################
+##### Q1: Regional check (instructor feedback)           #####
+#############################################################
+northwest    <- c("United Kingdom", "Ireland", "Iceland", "Faroe Islands", "Channel Islands",
+                  "Norway", "Sweden", "Denmark", "Finland", "Estonia", "Latvia", "Lithuania",
+                  "Netherlands", "Belgium", "Luxembourg", "France")
+central_east <- c("Germany", "Poland", "Czechia", "Slovakia", "Austria", "Switzerland",
+                  "Hungary", "Romania", "Moldova", "Ukraine", "Crimea", "Serbia")
+south        <- c("Spain", "Portugal", "Italy", "Malta", "Gibraltar", "Greece", "Albania",
+                  "Montenegro", "North Macedonia", "Croatia", "Slovenia", "Bulgaria")
+
+ancient_reg <- ancient   # a copy, so the original `ancient` is not changed
+ancient_reg$region <- ifelse(ancient_reg$political_entity %in% northwest, "Northern & Western",
+                      ifelse(ancient_reg$political_entity %in% central_east, "Central & Eastern",
+                      ifelse(ancient_reg$political_entity %in% south, "Southern", NA)))
+table(ancient_reg$region, useNA = "ifany")   # no NA expected; the three should sum to 7,150
+
+# Same six periods as the map, oldest first
+ancient_reg$period <- cut(ancient_reg$date_mean_bp,
+                          breaks = c(0, 1000, 2000, 3000, 4000, 5000, Inf), right = FALSE,
+                          labels = c("0-1,000 BP", "1,000-2,000 BP", "2,000-3,000 BP",
+                                     "3,000-4,000 BP", "4,000-5,000 BP", "5,000+ BP"))
+ancient_reg$period <- factor(ancient_reg$period, levels = rev(levels(ancient_reg$period)))
+
+# People (n), carriers (k, each person = one allele read, as in Figure 1), frequency
+reg <- aggregate(A_count ~ region + period, data = ancient_reg,
+                 FUN = function(x) c(n = length(x), k = round(sum(x) / 2)))
+reg <- do.call(data.frame, reg)
+names(reg) <- c("region", "period", "n", "k")
+reg$freq <- reg$k / reg$n
+ci_g <- t(mapply(function(k, n) suppressWarnings(prop.test(k, n, correct = FALSE)$conf.int),
+                 reg$k, reg$n))
+reg$lower <- ci_g[, 1]
+reg$upper <- ci_g[, 2]
+reg[order(reg$region, reg$period), ]   # CHECK the n in every cell before trusting the plot
+```
+What holds up: in all three regions the allele was rare until about 3,000 years ago. At 4,000–5,000 BP it was 2.2% in Northern & Western, 1.6% in Central & Eastern and 0.5% in Southern. That is the same “still rare when steppe groups appear” picture as your Q2 figure.
+
+What the pooled line was hiding: the speed of the rise differs a lot by region.
+
+Northern & Western: a sharp jump, from 5.6% (3,000–4,000 BP) to 39.5% (2,000–3,000 BP), then about 58–59%.
+Central & Eastern: a steady climb, about 6% → 10% → 18% → 32%.
+Southern: the slowest, about 4% until 2,000 years ago, then 12% and 21%.
+
+The dashed pooled line is a blend of these. It looks like one steep rise because the mix of regions in each period shifts. For example, Central & Eastern makes up 1,372 of the 2,259 people (61%) in the 1,000–2,000 BP bin. This is what your instructor suspected, and you can now show it.
+```r
+reg$region <- factor(reg$region, levels = c("Northern & Western", "Central & Eastern", "Southern"))
+```
+One more check before you trust the numbers. Belgium was 225 of the 476 people in the Northern & Western 0–1,000 BP cell, so that 59% may be partly a Belgium effect. This short block shows the largest country’s share in every cell. It only looks at the data:
+```r
+cell_top <- do.call(rbind, lapply(
+  split(ancient_reg, list(ancient_reg$region, ancient_reg$period), drop = TRUE),
+  function(d) {
+    t <- sort(table(d$political_entity), decreasing = TRUE)
+    data.frame(region = d$region[1], period = d$period[1], n = nrow(d),
+               top_country = names(t)[1], top_share = round(as.numeric(t[1]) / nrow(d), 2))
+  }))
+cell_top[order(cell_top$region, cell_top$period), ]
+```
+Cells where one country is over about 40% should be flagged in the report and the limitations.
+
+Several cells are dominated by one country:
+
+Over half: Northern & Western at 2,000–3,000 BP is 65% UK, and at 3,000–4,000 BP it is 54% UK. Central & Eastern at 1,000–2,000 BP is 51% Hungary. Southern at 2,000–3,000 BP is 54% Italy.
+40–50%: Northern & Western at 0–1,000 BP is 47% Belgium. Central & Eastern at 0–1,000 BP is 44% Hungary. Southern at 1,000–2,000 BP is 44% Italy, and at 4,000–5,000 BP it is 40% Spain.
+The big claim is the north-west jump to 39.5% at 2,000–3,000 BP. About two-thirds of the people in that cell are from the UK. That doesn’t make the jump wrong, but a single country could be driving it. This check recomputes each cell without its largest country:
+```r
+loo <- do.call(rbind, lapply(
+  split(ancient_reg, list(ancient_reg$region, ancient_reg$period), drop = TRUE),
+  function(d) {
+    top  <- names(sort(table(d$political_entity), decreasing = TRUE))[1]
+    rest <- d[d$political_entity != top, ]
+    data.frame(region = d$region[1], period = d$period[1], top_country = top,
+               n_all = nrow(d),    pct_all = round(100 * mean(d$A_count) / 2, 1),
+               n_without = nrow(rest), pct_without = round(100 * mean(rest$A_count) / 2, 1))
+  }))
+loo[order(loo$region, loo$period), ]
+```
+This assumes the genotype column is A_count.

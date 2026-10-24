@@ -309,10 +309,11 @@ p_q2_bar <- ggplot(q2_plot, aes(x = q2_group, y = freq, fill = q2_group)) +
                                "Bell Beaker" = "#56B4E9",
                                "Other European groups" = "lightgrey")) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1),
-                     expand = expansion(mult = c(0, 0.25))) +
+                     expand = expansion(mult = c(0, 0.40))) +   # was 0.25: more headroom for the labels
+  coord_cartesian(clip = "off") + 
   labs(
     title = "No Sign That Steppe-associated Groups Carried the \nLactase Persistence Allele More Often",
-    subtitle = "European individuals dated 4,000-5,000 years ago (around Late Neolithic - Early Bronze Age)",
+    subtitle = "European individuals dated 4,000-5,000 years ago\n(around Late Neolithic - Early Bronze Age)",
     x = "Group (by archaeological culture label)",
     y = "Allele frequency",
     caption = q2_caption
@@ -323,7 +324,7 @@ p_q2_bar <- ggplot(q2_plot, aes(x = q2_group, y = freq, fill = q2_group)) +
         plot.title = element_text(face = "bold", size = 15),
         plot.caption = element_text(hjust = 0, size = 10))
 p_q2_bar
-ggsave("figures/q2_steppe_comparison.png", plot = p_q2_bar, width = 10, height = 6.5, dpi = 300)
+ggsave("figures/slides/q2_steppe_comparison.png", plot = p_q2_bar, width = 8, height = 5.2, dpi = 300)
 
 
 
@@ -357,7 +358,6 @@ p_q2_timing <- p_q2_timing +
 
 p_q2_timing
 ggsave("figures/q2_steppe_timing.png", plot = p_q2_timing, width = 10, height = 6, dpi = 300)
-
 
 
 ################################
@@ -435,3 +435,124 @@ p_q1_map <- ggplot() +
         panel.grid.minor = element_blank())
 p_q1_map
 ggsave("figures/q1_map.png", plot = p_q1_map, width = 15, height = 10, dpi = 300)
+
+dir.create("figures/slides", showWarnings = FALSE)
+ggsave("figures/slides/q1_lactase_timeseries.png", plot = p_q1,        width = 8,   height = 4.8, dpi = 300)
+ggsave("figures/slides/q1_map.png",                plot = p_q1_map,    width = 10,  height = 6.7, dpi = 300)
+ggsave("figures/slides/q2_steppe_timing.png",      plot = p_q2_timing, width = 8,   height = 4.8, dpi = 300)
+ggsave("figures/slides/q2_steppe_comparison.png",  plot = p_q2_bar,    width = 8,   height = 5.2, dpi = 300)
+
+
+# Instructor feedback check
+table(bin4000$political_entity, bin4000$q2_group)
+
+# Check: compare only within countries that have BOTH steppe-associated and other people
+b <- bin4000[bin4000$q2_group %in% c("Steppe-associated", "Other European groups"), ]
+tab <- table(b$political_entity, b$q2_group)
+shared <- rownames(tab)[tab[, "Steppe-associated"] > 0 & tab[, "Other European groups"] > 0]
+shared                                  # should list 10 countries
+
+b_shared <- b[b$political_entity %in% shared, ]
+restricted <- aggregate(A_count ~ q2_group, data = b_shared,
+                        FUN = function(x) c(n = length(x), carriers = sum(x > 0)))
+restricted <- do.call(data.frame, restricted)
+names(restricted) <- c("q2_group", "n", "carriers")
+restricted$freq <- restricted$carriers / restricted$n
+
+ci_r <- t(mapply(function(k, n) suppressWarnings(prop.test(k, n, correct = FALSE)$conf.int),
+                 restricted$carriers, restricted$n))
+restricted$lower <- ci_r[, 1]
+restricted$upper <- ci_r[, 2]
+restricted
+
+fisher.test(cbind(restricted$carriers, restricted$n - restricted$carriers))$p.value
+
+
+
+#############################################################
+##### Q1: Regional check (instructor feedback)           #####
+#############################################################
+northwest    <- c("United Kingdom", "Ireland", "Iceland", "Faroe Islands", "Channel Islands",
+                  "Norway", "Sweden", "Denmark", "Finland", "Estonia", "Latvia", "Lithuania",
+                  "Netherlands", "Belgium", "Luxembourg", "France")
+central_east <- c("Germany", "Poland", "Czechia", "Slovakia", "Austria", "Switzerland",
+                  "Hungary", "Romania", "Moldova", "Ukraine", "Crimea", "Serbia")
+south        <- c("Spain", "Portugal", "Italy", "Malta", "Gibraltar", "Greece", "Albania",
+                  "Montenegro", "North Macedonia", "Croatia", "Slovenia", "Bulgaria")
+
+ancient_reg <- ancient # copy, so the original ancient is not changed
+ancient_reg$region <- ifelse(ancient_reg$political_entity %in% northwest, "Northern & Western",
+                             ifelse(ancient_reg$political_entity %in% central_east, "Central & Eastern",
+                                    ifelse(ancient_reg$political_entity %in% south, "Southern", NA)))
+
+table(ancient_reg$region, useNA = "ifany") # no NA expected, the 3 should sum to 7,150
+
+# Same six period sas the map, oldest first
+ancient_reg$period <- cut(ancient_reg$date_mean_bp,
+                          breaks = c(0, 1000, 2000, 3000, 4000, 5000, Inf), right = FALSE,
+                          labels = c("0-1,000 BP", "1,000-2,000 BP", "2,000-3,000 BP",
+                                     "3,000-4,000 BP", "4,000-5,000 BP", "5,000+ BP"))
+ancient_reg$period <- factor(ancient_reg$period, levels = rev(levels(ancient_reg$period)))
+
+# People (n), carriers (k, each person = one allele read, as in Fig 1), frequency 
+reg <- aggregate(A_count ~ region + period, data = ancient_reg,
+                 FUN = function(x) c(n = length(x), k = round(sum(x) / 2)))
+reg <- do.call(data.frame, reg)
+names(reg) <- c("region", "period", "n", "k")
+reg$freq <- reg$k / reg$n
+ci_g <- t(mapply(function(k, n) suppressWarnings(prop.test(k, n, correct = FALSE)$conf.int),
+                 reg$k, reg$n))
+reg$lower <- ci_g[, 1]
+reg$upper <- ci_g[, 2]
+reg[order(reg$region, reg$period), ] # Check the n in every cell before trusting plot
+
+# All of Europe pooled, same periods (the dashed grey reference line)
+pooled <- aggregate(A_count ~ period, data = ancient_reg, FUN = function(x) sum(x) / (2 * length(x)))
+names(pooled)[2] <- "freq"
+
+p_q1_regions <- ggplot(reg, aes(x = period, y = freq, group = 1)) +
+  geom_line(data = pooled, aes(x = period, y = freq, group = 1),
+            colour = "grey55", linewidth = 1, linetype = "dashed") +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.15, linewidth = 0.5, colour = "grey40") +
+  geom_line(colour = "#0072B2", linewidth = 1) +
+  geom_point(aes(size = n), colour = "#0072B2", alpha = 0.85) + 
+  facet_wrap(~ region, nrow = 1) + 
+  scale_size(range = c(2,8), name = "People sampled (n)") + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) + 
+  labs(title = "Does the rise look the same in each part of Europe?",
+       subtitle = "Blue = each region. Dashed grey line = all of Europe pooled",
+       x = "Time period (years before 1950, BP)", y = "Allele frequency",
+       caption = "Archaeological individuals only. Thin lines: 95% range (each person counted as one allele read).\nRegions: Nothern & Western (16 countries), Central & Eastern (12), Southern (12). Data: AADR v66.p1.") +
+  theme_minimal(base_size = 12) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom")
+p_q1_regions
+ggsave("figures/q1_regions.png", plot = p_q1_regions, width = 12, height = 5, dpi = 300)
+ggsave("figures/slides/q1_regions.png", plot = p_q1_regions, width = 10, height = 4.5, dpi = 300)
+
+# Checking before trusting the numbers
+reg$region <- factor(reg$region, levels = c("Northern & Western", "Central & Eastern", "Southern"))
+cell_top <- do.call(rbind, lapply(
+  split(ancient_reg, list(ancient_reg$region, ancient_reg$period), drop = TRUE),
+  function(d) {
+    t <- sort(table(d$political_entity), decreasing = TRUE)
+    data.frame(region = d$region[1], period = d$period[1], n = nrow(d),
+               top_country = names(t)[1], top_share = round(as.numeric(t[1]) / nrow(d), 2))
+  }))
+cell_top[order(cell_top$region, cell_top$period), ]
+
+# Robustness check
+loo <- do.call(rbind, lapply(
+  split(ancient_reg, list(ancient_reg$region, ancient_reg$period), drop = TRUE),
+  function(d) {
+    top  <- names(sort(table(d$political_entity), decreasing = TRUE))[1]
+    rest <- d[d$political_entity != top, ]
+    data.frame(region = d$region[1], period = d$period[1], top_country = top,
+               n_all = nrow(d),    pct_all = round(100 * mean(d$A_count) / 2, 1),
+               n_without = nrow(rest), pct_without = round(100 * mean(rest$A_count) / 2, 1))
+  }))
+loo[order(loo$region, loo$period), ]
+
+dir.create("tables", showWarnings = FALSE)
+write.csv(loo[order(loo$region, loo$period), ], "tables/regional_leave_one_out.csv", row.names = FALSE)
