@@ -108,6 +108,7 @@ freq_by_bin_full <- freq_by_bin_full[order(freq_by_bin_full$bp_bin), ]
 library(ggplot2)
 library(maps)
 dir.create("figures", showWarnings = FALSE) # So fresh clone can run it
+dir.create("figures/slides", showWarnings = FALSE)
 #################################################################################################### 
 ##### Q1: Time Series Chart - HOW DID FREQ OF LP CHANGE ACROSS EUROPE FROM NEOLITHIC - MODERN? #####
 ####################################################################################################
@@ -148,7 +149,7 @@ p_q1 <- ggplot(freq_by_bin_full, aes(x = bp_bin, y = freq, group = 1)) +
                      expand = expansion(mult = c(0, 0.08))) +
   labs(
     title = "Rise of the Lactase Persistence Allele (rs4988235) in Europe",
-    subtitle = "Frequency of the derived, milk-digesting allele across archaeological time periods",
+    subtitle = "Frequency of the derived allele linked to lactase persistence across archaeological time periods",
     x = "Time Period",
     y = "Allele Frequency",
     caption = "Thin lines: 95% range consistent with the data (each person counted as one allele read).\nData: Allen Ancient DNA Resource (AADR) v66.p1. Point size reflects sample size (n) per bin."
@@ -325,7 +326,7 @@ p_q2_bar <- ggplot(q2_plot, aes(x = q2_group, y = freq, fill = q2_group)) +
         plot.caption = element_text(hjust = 0, size = 10))
 p_q2_bar
 ggsave("figures/slides/q2_steppe_comparison.png", plot = p_q2_bar, width = 8, height = 5.2, dpi = 300)
-
+ggsave("figures/q2_steppe_comparison.png", plot = p_q2_bar, width = 10, height = 6.5, dpi = 300)
 
 
 ######################################
@@ -509,6 +510,7 @@ reg[order(reg$region, reg$period), ] # Check the n in every cell before trusting
 # All of Europe pooled, same periods (the dashed grey reference line)
 pooled <- aggregate(A_count ~ period, data = ancient_reg, FUN = function(x) sum(x) / (2 * length(x)))
 names(pooled)[2] <- "freq"
+reg$region <- factor(reg$region, levels = c("Northern & Western", "Central & Eastern", "Southern"))
 
 p_q1_regions <- ggplot(reg, aes(x = period, y = freq, group = 1)) +
   geom_line(data = pooled, aes(x = period, y = freq, group = 1),
@@ -522,7 +524,7 @@ p_q1_regions <- ggplot(reg, aes(x = period, y = freq, group = 1)) +
   labs(title = "Does the rise look the same in each part of Europe?",
        subtitle = "Blue = each region. Dashed grey line = all of Europe pooled",
        x = "Time period (years before 1950, BP)", y = "Allele frequency",
-       caption = "Archaeological individuals only. Thin lines: 95% range (each person counted as one allele read).\nRegions: Nothern & Western (16 countries), Central & Eastern (12), Southern (12). Data: AADR v66.p1.") +
+       caption = "Archaeological individuals only. Thin lines: 95% range (each person counted as one allele read).\nRegions: Northern & Western (16 countries), Central & Eastern (12), Southern (12). Data: AADR v66.p1.") +
   theme_minimal(base_size = 12) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         panel.grid.minor = element_blank(),
@@ -532,7 +534,6 @@ ggsave("figures/q1_regions.png", plot = p_q1_regions, width = 12, height = 5, dp
 ggsave("figures/slides/q1_regions.png", plot = p_q1_regions, width = 10, height = 4.5, dpi = 300)
 
 # Checking before trusting the numbers
-reg$region <- factor(reg$region, levels = c("Northern & Western", "Central & Eastern", "Southern"))
 cell_top <- do.call(rbind, lapply(
   split(ancient_reg, list(ancient_reg$region, ancient_reg$period), drop = TRUE),
   function(d) {
