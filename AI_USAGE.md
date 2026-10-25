@@ -639,5 +639,7 @@ loo <- do.call(rbind, lapply(
                n_without = nrow(rest), pct_without = round(100 * mean(rest$A_count) / 2, 1))
   }))
 loo[order(loo$region, loo$period), ]
+dir.create("tables", showWarnings = FALSE)
+write.csv(loo[order(loo$region, loo$period), ], "tables/regional_leave_one_out.csv", row.names = FALSE)
 ```
 This assumes the genotype column is A_count.

@@ -15,10 +15,8 @@
     - To determine if these tiny percentage differences (1.6% vs 2.0% vs 1.4%) were meaningful or just random chance, I ran Fisher's exact test (`cmp()` function). The p-values were as follows: Steppe vs Others p = 0.69, Bell Beaker vs Others p = 0.70, Steppe vs Bell Beaker = 1.00. None of these was significant. The p-value of 0.69 means that a difference this small *would happen by pure chance 69% of the time*. So there is no statistical evidence that Steppe-associated groups carried the LP allele at a higher rate than other Europeans did during this period. 
 10. Wilson's 95% confidence intervals were chosen to construct the error bars and the Q2 plot was successfully constructed. 
 11. Q2 V2: Timing chart, the time series with the steppe window shaded.  Easy - just used the same data from the Q1 V1 plot and then overlayed a shade rectangle on it to show where the Steppe people came in, and then made different titles, captions, etc. 
-
-## Current: Q2 
 12: Q1 V2: Geographic Map. 6 bins that align with the binning from Q1 V1 when the Steppe were introduced. 
 One thing to note, many of the coordinates showed rounded approximations of coordinates and should be described as such - approximate locations. Many individuals will also stack on the same dot, so they will be grouped into one dot per site. 3 lacked coordinates so they were excluded. Sampling is dense in the central Europe and British Isles and thin in the North East based off of the preliminary skeleton. I chose to go with size for the amount of individuals sampeled per location and the color to show at least one carrier of the LP allele. White bordering was added for the visibility. The pattern of the dots fits the trend the Q1 time-series chart carries. The 5,000 BP panel shows almost every dot is no carrier with one green dot that looks like France. Green becomes common from 2,000-3,000 BP and dominates by 1,000-2,000. *The share of the green dots is not the allele frequency, the Q1 time-series chart shows that.*
-
+13. Per instructor feedback, I added a figure that shows regions split into northern and west, central and eastern, and southern with their respective rises. I also calculated a country table to see if groups shared countries. 
 
 # All colors are chosen to be color blind friendly
