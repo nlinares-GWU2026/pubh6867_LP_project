@@ -7,7 +7,7 @@
 # stringsAsFactors = FALSE ensures text isn't automatically turned into factors. 
 raw <- read.table("data/lactase_extract_raw.txt", header = TRUE, stringsAsFactors = FALSE)
 
-# PLINK's rs4988235_G column counts the ancestral G allele (0 "GG"/1 "AG"/1 "AA") (non LP)
+# PLINK's rs4988235_G column counts the ancestral G allele (0 = "AA"/1 = "AG"/2 = "GG" (non LP)
 # Want the derived, LP allele (A) instead so flip:
 # Creates a new column 'A_count' by subtracting the ancestral allele count from 2
 # This flips the 0/1/2 count so it measures the lactase-persistence 'A' allele instead of the 'G' allele.
