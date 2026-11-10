@@ -1,30 +1,33 @@
 #########################
 ##### DATA CLEANING #####
 #########################
+
+# Reads the raw genotype file into R and creates a dataframe called 'raw'.
+# header = TRUE means the 1st row contains column names.
+# stringsAsFactors = FALSE ensures text isn't automatically turned into factors. 
 raw <- read.table("data/lactase_extract_raw.txt", header = TRUE, stringsAsFactors = FALSE)
 
-# PLINK's rs4988235_G column counts the ancestral G allele (0 "GG"/1 "AG"/2 "AA") (non LP)
-# Want the derived, LP allele (A) instead so flip: 
-# Calculates the derived, lactase-persistence A allele for each individual by subtracting the count of the ancestral (G) allele 
-# from 2, converting 0 to 2, 1 to 1, and 2 to 0
+# PLINK's rs4988235_G column counts the ancestral G allele (0 "GG"/1 "AG"/1 "AA") (non LP)
+# Want the derived, LP allele (A) instead so flip:
+# Creates a new column 'A_count' by subtracting the ancestral allele count from 2
+# This flips the 0/1/2 count so it measures the lactase-persistence 'A' allele instead of the 'G' allele.
 raw$A_count <- 2 - raw$rs4988235_G 
 
-# Drop individuals with no genotype data (NA values in A_count) and creates a simple
-# dataframe only containing IID (individual ID and A_count)
+# Filters our rows with missing data (NA) in 'A_count' and keeps only the "IID" and "A_count" columns. 
 raw_clean <- raw[!is.na(raw$A_count), c("IID", "A_count")]
 
-# Read the annotation file
-# Reads tab delimited file, treats the first row of the file as column titles, disables quote interpretation so that quote marks in the text 
-# fields are read as literal characters rather than string delimiters, and ensures text columns are loaded as char vectors vs converted into categorical
+# Reads tab delimited file, treas the first row of the file column titles, disables quote interpretation so that quote marks in the text
+# fields are read as literal chars rather than string delimiters, and ensures text columns are loaded as char vectors vs converted into categorical 
+# Loads the metadata file into dataframe called 'anno'
 anno <- read.delim("data/v66.p1_1240K.aadr.PUB.anno", header = TRUE, quote = "", stringsAsFactors =  FALSE)
 
 # Renaming
-# Column 1 = Genetic ID (explains the .SG shotgun genome/.AG Agilent capture/.DG diploid genome)
+# Column 1 = Genetic ID (explains the .SG shotgun genome/.AG Agilent capture/ .DG diploid genome)
 # Column 11 = date mean in BP (years before 1950)
 # Column 12 = date standard deviation in BP
 # Column 13 = human readable calibrated date range
-# Column 15 = Group.ID the archaeological group/culture label 
-# Column 16-19 = locality, country, latitude, longitude labels for regional grouping 
+# Column 15 = Group.ID the archeological group/culture label
+# Column 16-19 = locality, country, latitude, longitude labels for regional grouping
 
 names(anno)[1] <- "id"
 names(anno)[11] <- "date_mean_bp"
@@ -36,15 +39,22 @@ names(anno)[17] <- "political_entity"
 names(anno)[18] <- "latitude"
 names(anno)[19] <- "longitude"
 
-# Subset of 9 specific metadata columns from the full anno df 
+# Subset of 9 specific metadata columns from the full anno df
+# Selects only these 9 key columns to make a smaller working metadata called 'anno_sub'.
 anno_sub <- anno[, c("id", "group_id", "locality", "political_entity",
                      "latitude", "longitude", "date_mean_bp", "date_sd_bp", "full_date")]
+
 # Handling the latitude and longitude unknown values - 784 have a DATE but NO LOCATION - use in Q1 but NOT in Q2
+# Converts the longitude column from character text to numeric values (non-numeric text becomes NA).
 anno_sub$latitude <- as.numeric(anno_sub$latitude)
+# Converts the longitude column from character text to numeric values (non-numeric text becomes NA).
 anno_sub$longitude <- as.numeric(anno_sub$longitude)
 
-# Rename the column "IID" in raw_clean to "id" so it matches the column name in anno_sub
+# Changes the column name "IID" to "id" in raw_clean so both datasets share an exact column name. 
 names(raw_clean)[names(raw_clean) == "IID"] <- "id"
+
+# Merges the genetic dataset ('raw_clean') and metadata  dataset ('anno_sub') together by matching their "id" values.
+# all.x = TRUE keeps all individuals from raw_clean even if metadata is missing
 merged <- merge(raw_clean, anno_sub, by = "id", all.x = TRUE)
 
 # Binning
@@ -56,50 +66,75 @@ europe_countries <- c("Albania", "Austria", "Belgium", "Bulgaria", "Channel Isla
                       "Latvia", "Lithuania", "Luxembourg", "Malta", "Moldova", "Montenegro", "Netherlands",
                       "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Serbia", "Slovakia",
                       "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom")
+
+# Filters the merged dataset to keep only individuals whose country matches one in 'europe_countries'
 merged_europe <- merged[merged$political_entity %in% europe_countries, ]
 nrow(merged_europe) #7711
+# Individuals from each country 
 table(merged_europe$political_entity) # Hungary (1127) and UK (937) biggest; Malta (2) and Luxemborg (2) smallest
 
 # --> Check what these modern populations are:
+# Subsets individuals whose mean date is 0 BP (modern ref samples).
 zero_bp <- merged_europe[merged_europe$date_mean_bp == 0, ] # rows = 0, keep all columns
+# Counts how many unique modern ethnic/population group labels exist in the dataset (32).
 length(unique(zero_bp$group_id)) # 32 present day populations
+# Prints the first 35 unique modern population group labels.
 head(unique(zero_bp$group_id), 35)
 
-# Rebuilding archaeological-only time bin with modern samples are removed
+# Rebuilding archaeological-only time bin with modern samples are removed.
+# Filters out modern samples (date = 0 BP) into a separate data frame called 'modern'.
 modern <- merged_europe[merged_europe$date_mean_bp == 0, ]
+# Filters out ancient archaeological samples (date > 0 BP) into a data frame called 'ancient.'
 ancient <- merged_europe[merged_europe$date_mean_bp > 0, ]
 
 sum(modern$A_count) / (2*nrow(modern)) # Overall frequency, as an endpoint
 
-# Due to extremely small prevalence of LP in pre 10,000 BP - decided to collapse bins >10,000 BP into one category 
-# In order to not disrupt signal for intepretation
-# Keep individual 1,000-year bins from 10,000 BP to present where sample sizes are actually large enough to be meaningful
+# Due to extremely small prevalence of LP in pre 10,000 BP - decided to collapse bins >10,000 BP into one category
+# In ordr to not disrupt signal for interpretation
+# Keep individual 1,000 year bins from 10k BP to present where sample sizes are actually large enough to be meaningful
+# Assigns a 1,000 year age category to ancient samples; dates >= 10k BP are grouped into a single "Pre-Neolithic" bin
 ancient$bp_bin <- ifelse(ancient$date_mean_bp >= 10000,
                          "Pre-Neolithic (> 10,000 BP)", as.character(floor(ancient$date_mean_bp / 1000) * 1000))
-# Groups individuals by their 1000 year time bin (bp_bin) and calculates both sample size and allele frequency
+
+
+# Aggregates ancient samples by time bin, computing samples size (n) and alelle frequency (freq) for each bin. 
 freq_by_bin <- aggregate(A_count ~ bp_bin, data = ancient, # Groups the target variable (A_count) by the grouping factor (bp_bin)
                          FUN = function(x) c(n = length(x),  # Counts total number of individuals in that time bin
                                              freq = sum(x) / (2 * length(x)))) # totals the count of A alleles across all individuals in that bin and calculates the total number of alleles in that gene (out of 2)
-freq_by_bin <- do.call(data.frame, freq_by_bin) # Flatten into data frame
+# Flattens the matrix returned by aggregate() into a standard R data frame.
+freq_by_bin <- do.call(data.frame, freq_by_bin)
+# Renames the columns of the summary data frame into "bp_bin", "n", and "freq".
 names(freq_by_bin) <- c("bp_bin", "n", "freq")
+# Sets up a chronological ordering vector from oldest (Pre-neolithic) down to 0 BP.
 bin_order <- c("Pre-Neolithic (> 10,000 BP)", as.character(seq(9000, 0, by = -1000))) # Order rows chronologically: Pre-Neo first -> descending towards present
+# Convert's 'bp_bin' into a categorical factor with levels fixed in chronological order.
 freq_by_bin$bp_bin <- factor(freq_by_bin$bp_bin, levels = bin_order)
+# Sorts the rows of the data frame according to the new chron factor order.
 freq_by_bin <- freq_by_bin[order(freq_by_bin$bp_bin), ]
+
 freq_by_bin
 
-# Building modern data point in the same structure as freq_by_bin
-modern_freq <- sum(modern$A_count) / (2 * nrow(modern))
+#modern_freq <- sum(modern$A_count) / (2 * nrow(modern))
+
+# Creates a one-row data frame for modern samples matching the column structure of 'freq_by_bin'
 modern_row <- data.frame(bp_bin = "Modern (Present)", n = nrow(modern), freq = modern_freq, stringsAsFactors = FALSE)
 
 # Flag archaeological vs. modern so they can be styled differently later on
-freq_by_bin$bp_bin <- as.character(freq_by_bin$bp_bin) # Drop factor temporarily to combine
+# Converts 'bp_bin' back to character string so it cane be combined with the modern row. 
+freq_by_bin$bp_bin <- as.character(freq_by_bin$bp_bin)
+# Adds a new column tagging all rows in 'freq_by_bin' as "Archaeological"
 freq_by_bin$period_type <- "Archaeological"
+# Adds the same column tagging modern row as "Modern"
 modern_row$period_type <- "Modern"
-freq_by_bin_full <- rbind(freq_by_bin, modern_row) # Combine them
+# Binds the ancient summary rows and modern summary row together into 'freq_by_bin_full.'
+freq_by_bin_full <- rbind(freq_by_bin, modern_row)
 
 # Re-apply chronological order with Modern as the final point
+# Defines a full choronological order vector including "Modern (Present)" at the end
 bin_order_full <- c(bin_order, "Modern (Present)")
+# Re-applies the full factor ordering to the combined dataframe.
 freq_by_bin_full$bp_bin <- factor(freq_by_bin_full$bp_bin, levels = bin_order_full)
+# Sorts the final combined summary table chronologically 
 freq_by_bin_full <- freq_by_bin_full[order(freq_by_bin_full$bp_bin), ]
 
 #####################
@@ -107,11 +142,13 @@ freq_by_bin_full <- freq_by_bin_full[order(freq_by_bin_full$bp_bin), ]
 #####################
 library(ggplot2)
 library(maps)
+# Creates the main "figures" and then "slides" output folder if doesn't already exist
 dir.create("figures", showWarnings = FALSE) # So fresh clone can run it
 dir.create("figures/slides", showWarnings = FALSE)
 #################################################################################################### 
 ##### Q1: Time Series Chart - HOW DID FREQ OF LP CHANGE ACROSS EUROPE FROM NEOLITHIC - MODERN? #####
 ####################################################################################################
+# Defines clean, formatted multi-line text labels for each time period to display cleany on the x-axis
 bin_labels <- c(
   "Pre-Neolithic (> 10,000 BP)" = "Pre-Neolithic\n(>10,000 BP)",
   "9000" = "9,000-10,000\nBP",
@@ -127,24 +164,28 @@ bin_labels <- c(
   "Modern (Present)" = "Present\nDay"
 )
 
-# 95% Wilson ranges per bin. Each person counts as one allele read (pseudohaploid),
-# so the sample size for uncertainty is n individuals, not 2n.
+# 95% Wilson ranges per bin, each person counts as ONE allele (pseudohaploid),
+# so the sample size for uncertainty is n individuals, not 2n. 
+# Calculates the estimated count of carriers (k) in each by multiplying frequency by n
 k_bin <- round(freq_by_bin_full$freq * freq_by_bin_full$n) # carriers per bin
+
+# Computes 95% Wilson confidence intervals for each time bin using prop.test()
 ci_bin <- t(mapply(function(k,n) suppressWarnings(prop.test(k, n, correct = FALSE)$conf.int),
                    k_bin, freq_by_bin_full$n))
 freq_by_bin_full$lower <- ci_bin[,1]
 freq_by_bin_full$upper <- ci_bin[,2]
 freq_by_bin_full[, c("bp_bin", "n", "freq", "lower", "upper")]
 
+# Initializes ggplot object using 'freq_by_bin' mapping time to x and frequency to y.
 p_q1 <- ggplot(freq_by_bin_full, aes(x = bp_bin, y = freq, group = 1)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.15, linewidth = 0.4, colour = "grey40") +
-  geom_line(color = "#0072B2", linewidth = 1) +
-  geom_point(aes(size = n, color = period_type, shape = period_type), alpha = 0.85) +
-  scale_size(range = c(5, 15), trans = "sqrt", name = "Sample size (n)") +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.15, linewidth = 0.4, colour = "grey40") + # Error bar lines
+  geom_line(color = "#0072B2", linewidth = 1) + # Solid blue connecting line across time bins
+  geom_point(aes(size = n, color = period_type, shape = period_type), alpha = 0.85) + # Point size reflects sample size (n) and shape/color reflects sample type (ancient vs modern)
+  scale_size(range = c(5, 15), trans = "sqrt", name = "Sample size (n)") + # Scales point sizes visually using square-root tansformation
   scale_color_manual(values = c("Archaeological" = "#0072B2", "Modern" = "#333333"), name = "Sample type") +
   scale_shape_manual(values = c("Archaeological" = 16, "Modern" = 17), name = "Sample Type") +
   scale_x_discrete(labels = bin_labels) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), # Formats y-axis values as percentages from 0-50%
                      breaks = seq(0, 0.5, 0.1), limits = c(-0.05, NA),
                      expand = expansion(mult = c(0, 0.08))) +
   labs(
@@ -159,17 +200,26 @@ p_q1 <- ggplot(freq_by_bin_full, aes(x = bp_bin, y = freq, group = 1)) +
   guides(color = guide_legend(title = "Sample Type"),
          shape = guide_legend(title = "Sample Type"))
 p_q1
+# (10x6 inches, 300 DPI)
 ggsave("figures/q1_lactase_timeseries.png", plot = p_q1, width = 10, height = 6, dpi = 300)
+
+
+
 #############################
 ##### SENSITIVITY CHECK #####
 #############################
 # The 0-1000 BP bin is dominated by Belgium (225 of 737 individuals, ~30%).
 # Checking whether this single country is driving the bin's frequency:
+# Extracts the list of countries represented in the most recent archaeological bin (0-1000 BP)
 last_bin_countries <- ancient$political_entity[ancient$bp_bin == "0"]
+# Sorted table showing how many individuals come from each country in this bin
 sort(table(last_bin_countries), decreasing = TRUE)
-# Frequency of the 0-1,000 BP bin with and without Belgium, next to the modern value
+# Frequency of thhe 0-1000 BP bin with and without Belgium next to the modern value 
+# Filters ancient sampels down to only those in the 1-1000 BP bin
 last_bin <- ancient[ancient$bp_bin == "0", ]
+# Subsets to exclude Belgium
 no_belgium <- last_bin[last_bin$political_entity != "Belgium", ]
+# Calculates and rounds allele frequenceis for 3 scenarios: with Belgium, without, and modern
 round(c(with_Belgium = sum(last_bin$A_count) / (2 * nrow(last_bin)),
         without_Belgium = sum(no_belgium$A_count) / (2 * nrow(no_belgium)),
         modern = modern_freq), 3)
@@ -187,14 +237,17 @@ round(c(with_Belgium = sum(last_bin$A_count) / (2 * nrow(last_bin)),
 # Yamnaya (steppe population itself), Corded Ware, Bell Beaker (which both emerged in Europe after)
 # Also a few cultures preceding Yamanaya west spread: Catacomb, Srubnaya, and Sintashta
 
+# Extracts and sorts all unique archaeological group names in the ancient dataset 
 unique_groups <- sort(unique(ancient$group_id))
 length(unique_groups)
 
 # Known steppe-associated culture names from aDNA lit
 # (Haak et al., 2015 and Allentoft et al., 2015)
+# Creates a list of target keywords associated with Bronze Age Steppe ancestry
 steppe_keywords <- c("Yamnaya", "Corded_Ware", "CordedWare", "Bell_Beaker", "BellBeaker",
                      "Catacomb", "Srubnaya", "Sintashta", "Afanasievo", "Potapovka",
                      "Poltavka", "Steppe")
+# Uses pattern matching (grepl) to search unique groups for any matching keywords.
 steppe_candidates <- unique_groups[grepl(paste(steppe_keywords, collapse = "|"),
                                          unique_groups, ignore.case = TRUE)]
 length(steppe_candidates) # Length was 96
@@ -204,9 +257,11 @@ steppe_candidates
 ##### Bell Beaker Mixed Ancestry & Quantifying Count Individuals #####
 ######################################################################
 
+# Dataframe containing candidate group names
 cand <- data.frame(group_id = steppe_candidates, stringsAsFactors = FALSE)
 
 # Outliers caught first so "Yamnaya-o" lands in outlier, not core
+# Uses nested logic to classify candidates in 4 buckets: Outliers, Scythians, Bell Beaker, or Core Steppe
 cand$category <- ifelse(grepl("-o", cand$group_id), "Outlier (exclude)",
                         ifelse(grepl("Scythian", cand$group_id), "Scythian (exclude)",
                                ifelse(grepl("BellBeaker", cand$group_id), "Bell Beaker",
@@ -216,6 +271,7 @@ table(cand$category) # Groups per category
 cand[cand$category == "Other", ] # Confirmed empty
 
 # Individuals per category, and which time bins they go into
+# Merging the candidate classifications back into ancient indivisual level dataset 
 ancient_cand <- merge(ancient, cand, by = "group_id")
 table(ancient_cand$category)
 table(ancient_cand$category, ancient_cand$bp_bin)
@@ -233,13 +289,17 @@ sum(grepl("^Ignore_", ancient$group_id))
 # Overall allele counts in this era are very low. All 3 bars will likely sit near zero which 
 # suggests that early Steppe migrants were not bringing the LP gene in high numbers. 
 
-# Investigating numbers before building
+# Investigating numbers before building 
+# Pulls group IDs for Core Steppe cultures
 core_ids <- cand$group_id[cand$category == "Core steppe"] # Date range of the core steppe-associated indivs (for timing annotation)
+# Filters ancient individuals belonging to Core Steppe cultures
 core_ind <- ancient[ancient$group_id %in% core_ids, ]
 summary(core_ind$date_mean_bp) # Pulls Core Steppe 
 
 # Snapshot: 4,000 - 5,000 BP bin, split into 3 groups
+# Filters the dataset down to individuals in the 4,000-5,000 BP time bin
 bin4000 <- ancient[ancient$bp_bin == "4000", ]
+# Assigns each individual in this bin to one of the 4 comparison groups 
 bin4000$q2_group <- ifelse(bin4000$group_id %in% cand$group_id[cand$category == "Core steppe"],
                            "Steppe-associated",
                     ifelse(bin4000$group_id %in% cand$group_id[cand$category == "Bell Beaker"],
@@ -252,6 +312,7 @@ q2_table <- aggregate(A_count ~ q2_group, data = bin4000,
                       FUN = function(x) c(n = length(x),
                                           a_alleles = sum(x),
                                           freq = sum(x) / (2 * length(x))))
+# Flattens aggregate matrix into DF
 q2_table <- do.call(data.frame, q2_table)
 names(q2_table) <- c("q2_group", "n", "A_alleles", "freq")
 q2_table
@@ -264,6 +325,7 @@ carriers <- aggregate(A_count ~ q2_group, data = bin4000,
                       FUN = function(x) c(n = length(x), carriers = sum(x > 0)))
 carriers <- do.call(data.frame, carriers)
 names(carriers) <- c("q2_group", "n", "carriers")
+# Computes individual-level frequency (carriers/n)
 carriers$freq <- carriers$carriers / carriers$n
 carriers
 
@@ -273,21 +335,25 @@ carriers
 
 # Drop the 38 AADR-flagged outliers (0 carriers, so exclusion cannot hide steppe signal)
 q2_plot <- carriers[carriers$q2_group != "Outlier (excluded)", ]
+# Row names equal to group names for easy lookup
 rownames(q2_plot) <- q2_plot$q2_group
 
 # 95% Wilson score ranges: each person counts as 1 allele read (pseudohaploid),
 # so the sample size for uncertainty is n individuals, not 2n
 ci <- t(mapply(function(k,n) prop.test(k, n, correct = FALSE)$conf.int,
                q2_plot$carriers, q2_plot$n))
+# Stores lower Confidence bound in 'q2_plot'
 q2_plot$lower <-ci[, 1]
+# Stores upper confidence bound in 'q2_lot'
 q2_plot$upper <-ci[, 2]
 q2_plot$label <- paste0(q2_plot$carriers, " of ", q2_plot$n, "\nindividuals")
 
-# Left to right order of bars fixed
+# Left to right order of bars fixed - sets factor level order: Steppe-associated first, Bell Beaker second, Other Europeans third 
 q2_plot$q2_group <- factor(q2_plot$q2_group,
                            levels = c("Steppe-associated", "Bell Beaker", "Other European groups"))
 
 # Pairwise comparison (Fischers test suited to very small counts)
+# Defines a custom functin 'cmp' to run Fischer's exact test between two groups
 cmp <- function(g1,g2) {
   k <- q2_plot[c(g1, g2), "carriers"]
   n <- q2_plot[c(g1, g2), "n"]
@@ -305,12 +371,15 @@ q2_caption <- paste(strwrap(
 p_q2_bar <- ggplot(q2_plot, aes(x = q2_group, y = freq, fill = q2_group)) +
   geom_col(width = 0.5) +
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.15, linewidth = 1.0) +
+  # Prints text labels (eg 2 of 122( above error bars ))
   geom_text(aes(y = upper, label = label), vjust = -0.5, size = 4.5)+
   scale_fill_manual(values = c("Steppe-associated" = "#E69F00",
                                "Bell Beaker" = "#56B4E9",
                                "Other European groups" = "lightgrey")) +
+  # Formats y-axis as percentages with headroom for text labels
   scale_y_continuous(labels = scales::percent_format(accuracy = 1),
                      expand = expansion(mult = c(0, 0.40))) +   # was 0.25: more headroom for the labels
+  # Prevents labels at top from getting clipped off by plot bounds 
   coord_cartesian(clip = "off") + 
   labs(
     title = "No Sign That Steppe-associated Groups Carried the \nLactase Persistence Allele More Often",
@@ -334,10 +403,14 @@ ggsave("figures/q2_steppe_comparison.png", plot = p_q2_bar, width = 10, height =
 ######################################
 # Where the "4000" bin (4,000-5,000 BP) on the x-axis -> a discrete axis counts its categories 
 # 1, 2, 3, ..., so look up the position 
-x_steppe   <- which(levels(freq_by_bin_full$bp_bin) == "4000")
-pct_in_bin <- round(100 * mean(core_ind$bp_bin == "4000"))
-n_core     <- nrow(core_ind)
 
+# Finds the numerical x-axis position index corresponding to the "4000" BP bin
+x_steppe <- which(levels(freq_by_bin_full$bp_bin) == "4000")
+# Calculates the percentage of Core Steppe individuals who fall inside this 4,000 BP bin
+pct_in_bin <- round(100 * mean(core_ind$bp_bin == "4000"))
+n_core <- nrow(core_ind)
+
+# Creates semi-transparent orange rect layer spanning the width of the 4,000 BP bin
 steppe_band <- annotate("rect", xmin = x_steppe - 0.5, xmax = x_steppe + 0.5,
                         ymin = -Inf, ymax = Inf, fill = "#E69F00", alpha = 0.18)
 
@@ -345,6 +418,7 @@ steppe_band <- annotate("rect", xmin = x_steppe - 0.5, xmax = x_steppe + 0.5,
 p_q2_timing <- p_q1
 p_q2_timing$layers <- c(list(steppe_band), p_q1$layers)
 
+# Adds text annotation, adjust plot headroom, and updates title/caption
 p_q2_timing <- p_q2_timing +
   annotate("text", x = x_steppe, y = 0.40, size = 4.5, lineheight = 0.95,
            label = paste0("Steppe-associated\ngroups appear\n(", pct_in_bin, "% dated here)")) +
@@ -366,20 +440,24 @@ ggsave("figures/q2_steppe_timing.png", plot = p_q2_timing, width = 10, height = 
 ################################
 
 # Only archeological individuals with coordinates can go on the map (modern ref have no excavation site)
+
+# Checks how many ancient individuals are missing latitude values (3)
 sum(is.na(ancient$latitude)) # European archaeological individuals with NO coordinates
 nrow(ancient) # Total European archaeological individuals
 
+# Filters ancient dataset to keep only samples with valid latitude and longitude coordinates
 ancient_map <- ancient[!is.na(ancient$latitude) & !is.na(ancient$longitude), ]
 nrow(ancient_map) # 7147 (7150 individuals minus 3 with no coordinates)
 
 # Assign each individual to 1,000 year period (same bins as the Q1 chart)
 # right = FALSE makes the bins [0,1000), [1,000,2,000), ... exactly like floor(date/1000)
+# Cuts mean age into 6 broad time categories matching the time bins 
 ancient_map$period <-cut(ancient_map$date_mean_bp,
                          breaks = c(0, 1000, 2000, 3000, 4000, 5000, Inf),
                          right = FALSE,
                          labels = c("0-1,000 BP", "1,000-2,000 BP", "2,000-3,000 BP",
                                     "3,000-4,000 BP", "4,000-5,000 BP", "5,000+ BP"))
-# Oldest period first so panels read in chronological order
+# Reverses factor levels so panels display in chronological order (oldest top-left to newest bottom-right)
 ancient_map$period <- factor(ancient_map$period, levels = rev(levels(ancient_map$period)))
 
 table(ancient_map$period) # Indivs per period
@@ -390,15 +468,17 @@ names(ancient_map) # A_count holds the LP allele count
 
 # IF carrier of LP, A_count is > 0 
 ancient_map$carrier <- ancient_map$A_count > 0 
-ancient_map$one <- 1 # Counting people per site 
+ancient_map$one <- 1 # Counting people per site BOOLEAN
 
 # One row per location x period, how many people (n) and how many carriers among them
+# Aggregates sample count (one) and carrier count (carrier) for each lat/long/period combination
 site_period <- aggregate(cbind(one, carrier) ~ latitude + longitude + period,
                          data = ancient_map, FUN = sum)
 
 names(site_period)[names(site_period) == "one"] <- "n"
 names(site_period)[names(site_period) == "carrier"] <- "carriers"
 
+# Categorizes sites into "Carrier found" (if carriers >0) or "No carrier found" 
 site_period$carrier_found <- factor(ifelse(site_period$carriers > 0,
                                            "Carrier found", "No carrier found"),
                                     levels = c("No carrier found", "Carrier found"))
@@ -407,11 +487,15 @@ site_period$carrier_found <- factor(ifelse(site_period$carriers > 0,
 site_period <- site_period[order(site_period$carrier_found), ]
 
 # Checking
+# Verifies total mapped sample count equals 7,147
 sum(site_period$n) # 7147 (Matches the 7150 individuals and 3 with no coords)
 nrow(site_period) # Number of dots acrosss all 6 panels - 1785
+# Counts total site dots with vs without carriers 
 table(site_period$carrier_found) # How many dots are grey vs colored (Grey =  1331 vs Colored = 454)
 
 outline <- map_data("world")   # country outlines for the map background
+
+# Map object initialization
 p_q1_map <- ggplot() +
   geom_polygon(data = outline, aes(x = long, y = lat, group = group),
                fill = "lightgrey", color = "grey", linewidth = 0.25) +
@@ -422,10 +506,13 @@ p_q1_map <- ggplot() +
                                  "Carrier found"    = "#117733"),
                       name = NULL) +
   scale_size(range = c(1.75, 9), breaks = c(1, 5, 20),
-                  name = "People sampled \nat this location") +
+                  name = "People sampled \nat this location") + # To set map dot sizing scale relative to sample size. 
   guides(fill = guide_legend(order = 1, override.aes = list(size = 4)),
          size = guide_legend(order = 2, override.aes = list(fill = "grey50"))) + 
+  # Crops map limits strictly to European corrdinates (Long -35 to 45, Lat 35=75)
   coord_quickmap(xlim = c(-25, 45), ylim = c(35, 75)) +
+  
+  # Creates a 6-panel grid split acorss 2 rows by time period
   facet_wrap(~ period, nrow = 2) +
   labs(title = "Where the lactase persistence allele turns up across Europe",
        subtitle = "Each dot is one approximate location; green means at least one person there carried the allele",
@@ -448,24 +535,32 @@ ggsave("figures/slides/q2_steppe_comparison.png",  plot = p_q2_bar,    width = 8
 table(bin4000$political_entity, bin4000$q2_group)
 
 # Check: compare only within countries that have BOTH steppe-associated and other people
+# Filters 4,000 BP bin down to Steppe-associated and Other European groups
 b <- bin4000[bin4000$q2_group %in% c("Steppe-associated", "Other European groups"), ]
+# Contingency table of country by group
 tab <- table(b$political_entity, b$q2_group)
+# Extracts country names that contain AT LEAST 1 individiual from both groups 
 shared <- rownames(tab)[tab[, "Steppe-associated"] > 0 & tab[, "Other European groups"] > 0]
 shared                                  # should list 10 countries
 
+# Filters data to include only sampels from those 10 shared countries
 b_shared <- b[b$political_entity %in% shared, ]
+# Aggregates sample counts and carrier counts within the shared country subset 
 restricted <- aggregate(A_count ~ q2_group, data = b_shared,
                         FUN = function(x) c(n = length(x), carriers = sum(x > 0)))
-restricted <- do.call(data.frame, restricted)
+restricted <- do.call(data.frame, restricted) # Flattens aggregate matrix to DF 
 names(restricted) <- c("q2_group", "n", "carriers")
+# Computes restricted allele frequency
 restricted$freq <- restricted$carriers / restricted$n
 
+# Computes 95% Wilson confidence internals for restricted subset 
 ci_r <- t(mapply(function(k, n) suppressWarnings(prop.test(k, n, correct = FALSE)$conf.int),
                  restricted$carriers, restricted$n))
 restricted$lower <- ci_r[, 1]
 restricted$upper <- ci_r[, 2]
 restricted
 
+# Runs Fischer's exact test on geographically restricted subset (evaluates geographical control p-value)
 fisher.test(cbind(restricted$carriers, restricted$n - restricted$carriers))$p.value
 
 
@@ -489,18 +584,24 @@ ancient_reg$region <- ifelse(ancient_reg$political_entity %in% northwest, "North
 table(ancient_reg$region, useNA = "ifany") # no NA expected, the 3 should sum to 7,150
 
 # Same six period sas the map, oldest first
+# Cuts age into 6 time periods for regional comparison
 ancient_reg$period <- cut(ancient_reg$date_mean_bp,
                           breaks = c(0, 1000, 2000, 3000, 4000, 5000, Inf), right = FALSE,
                           labels = c("0-1,000 BP", "1,000-2,000 BP", "2,000-3,000 BP",
                                      "3,000-4,000 BP", "4,000-5,000 BP", "5,000+ BP"))
+# Reverses factor levels for chronological display
 ancient_reg$period <- factor(ancient_reg$period, levels = rev(levels(ancient_reg$period)))
 
 # People (n), carriers (k, each person = one allele read, as in Fig 1), frequency 
+# Aggregates sample size (n) and carrier counts (k) by region and period
 reg <- aggregate(A_count ~ region + period, data = ancient_reg,
                  FUN = function(x) c(n = length(x), k = round(sum(x) / 2)))
+# Flattens matrix to DF 
 reg <- do.call(data.frame, reg)
 names(reg) <- c("region", "period", "n", "k")
+# Calculates regional allele freq
 reg$freq <- reg$k / reg$n
+# Computes 95% wilson confidence intervals for each region-period cell.
 ci_g <- t(mapply(function(k, n) suppressWarnings(prop.test(k, n, correct = FALSE)$conf.int),
                  reg$k, reg$n))
 reg$lower <- ci_g[, 1]
@@ -508,16 +609,23 @@ reg$upper <- ci_g[, 2]
 reg[order(reg$region, reg$period), ] # Check the n in every cell before trusting plot
 
 # All of Europe pooled, same periods (the dashed grey reference line)
+# Calculates overall pooled European frequency across periods for reference 
 pooled <- aggregate(A_count ~ period, data = ancient_reg, FUN = function(x) sum(x) / (2 * length(x)))
 names(pooled)[2] <- "freq"
+# Sets regional factor display order 
 reg$region <- factor(reg$region, levels = c("Northern & Western", "Central & Eastern", "Southern"))
 
+# Initializes facted regional plot obj
 p_q1_regions <- ggplot(reg, aes(x = period, y = freq, group = 1)) +
-  geom_line(data = pooled, aes(x = period, y = freq, group = 1),
+    # Draws overall pooled European trend as a grey dashed line background 
+   geom_line(data = pooled, aes(x = period, y = freq, group = 1),
             colour = "grey55", linewidth = 1, linetype = "dashed") +
+  # Adds error bars showing 95% confidence bounds
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.15, linewidth = 0.5, colour = "grey40") +
+  # Blue regional trend line 
   geom_line(colour = "#0072B2", linewidth = 1) +
-  geom_point(aes(size = n), colour = "#0072B2", alpha = 0.85) + 
+ # Regional data poinst sized by sample count
+   geom_point(aes(size = n), colour = "#0072B2", alpha = 0.85) + 
   facet_wrap(~ region, nrow = 1) + 
   scale_size(range = c(2,8), name = "People sampled (n)") + 
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) + 
@@ -534,6 +642,7 @@ ggsave("figures/q1_regions.png", plot = p_q1_regions, width = 12, height = 5, dp
 ggsave("figures/slides/q1_regions.png", plot = p_q1_regions, width = 10, height = 4.5, dpi = 300)
 
 # Checking before trusting the numbers
+# Calculates top contributing country share for each region-period cell.
 cell_top <- do.call(rbind, lapply(
   split(ancient_reg, list(ancient_reg$region, ancient_reg$period), drop = TRUE),
   function(d) {
@@ -544,6 +653,7 @@ cell_top <- do.call(rbind, lapply(
 cell_top[order(cell_top$region, cell_top$period), ]
 
 # Robustness check
+# Performs leave-one-out sensitivity test by recalculating regional frequencies excluding the top country 
 loo <- do.call(rbind, lapply(
   split(ancient_reg, list(ancient_reg$region, ancient_reg$period), drop = TRUE),
   function(d) {
