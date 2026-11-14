@@ -114,7 +114,7 @@ freq_by_bin <- freq_by_bin[order(freq_by_bin$bp_bin), ]
 
 freq_by_bin
 
-#modern_freq <- sum(modern$A_count) / (2 * nrow(modern))
+modern_freq <- sum(modern$A_count) / (2 * nrow(modern))
 
 # Creates a one-row data frame for modern samples matching the column structure of 'freq_by_bin'
 modern_row <- data.frame(bp_bin = "Modern (Present)", n = nrow(modern), freq = modern_freq, stringsAsFactors = FALSE)
