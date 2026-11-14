@@ -145,6 +145,7 @@ library(maps)
 # Creates the main "figures" and then "slides" output folder if doesn't already exist
 dir.create("figures", showWarnings = FALSE) # So fresh clone can run it
 dir.create("figures/slides", showWarnings = FALSE)
+dir.create("tables", showWarnings = FALSE)
 #################################################################################################### 
 ##### Q1: Time Series Chart - HOW DID FREQ OF LP CHANGE ACROSS EUROPE FROM NEOLITHIC - MODERN? #####
 ####################################################################################################
@@ -558,6 +559,7 @@ ci_r <- t(mapply(function(k, n) suppressWarnings(prop.test(k, n, correct = FALSE
                  restricted$carriers, restricted$n))
 restricted$lower <- ci_r[, 1]
 restricted$upper <- ci_r[, 2]
+write.csv(restricted, "tables/steppe_restricted_comparison.csv", row.names = FALSE)
 restricted
 
 # Runs Fischer's exact test on geographically restricted subset (evaluates geographical control p-value)
@@ -613,7 +615,7 @@ reg[order(reg$region, reg$period), ] # Check the n in every cell before trusting
 pooled <- aggregate(A_count ~ period, data = ancient_reg, FUN = function(x) sum(x) / (2 * length(x)))
 names(pooled)[2] <- "freq"
 # Sets regional factor display order 
-reg$region <- factor(reg$region, levels = c("Northern & Western", "Central & Eastern", "Southern"))
+#reg$region <- factor(reg$region, levels = c("Northern & Western", "Central & Eastern", "Southern"))
 
 # Initializes facted regional plot obj
 p_q1_regions <- ggplot(reg, aes(x = period, y = freq, group = 1)) +
