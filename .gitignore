@@ -8,6 +8,7 @@ data/*.geno
 data/*.bed
 data/*.bim
 data/*.fam
+data/*.ind
 
 # R / RStudio
 .Rproj.user/
