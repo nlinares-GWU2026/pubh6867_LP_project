@@ -28,10 +28,10 @@ The large AADR files are **not** in the repository (see `.gitignore`). They are 
 
 ## Two ways to reproduce
 
-**A (recommended, quicker): Reproduce every figure and table from the included extract.**
+** Option A (recommended, quicker): Reproduce every figure and table from the included extract.**
 You only need R and the AADR annotation file.
 
-**Route B (optional, slower): Rebuild the extract from the raw AADR genotype files.**
+**Option B (optional, slower): Rebuild the extract from the raw AADR genotype files.**
 Only needed if you want to check how `data/lactase_extract_raw.txt` was made. 
 
 ### Step 1. Download the AADR files (Harvard Dataverse)
@@ -47,14 +47,13 @@ On the dataset page, download these files (the file names below are the ones thi
 | `v66.p1_1240K.aadr.patch.PUB.snp` | Option B only |
 | `v66.p1_1240K.aadr.patch.PUB.ind` | Option B only |
 
-Put `v66.p1_1240K.aadr.PUB.anno` in this repository's `data\` folder, so its path is `data/v66.p1_1240K.aadr.PUB.anno`. The script reads exactly that path. 
+Put `v66.p1_1240K.aadr.PUB.anno` in this repository's `data/` folder, so its path is `data/v66.p1_1240K.aadr.PUB.anno`. The script reads exactly that path. 
 
 ### Step 2 (Option B only). Rebuild the genotype extract
 
 Run in a bash terminal (this project used WSL2 Ubuntu). Put the downloaded `.geno`, `.snp`, and `.ind` files in one working folder outside the repository.
 
 ```bash
-# 1. Create the environment (PLINK 1.9 and EIGENSOFT)
 # 1. Create the environment (PLINK 1.9 and EIGENSOFT)
 conda env create -f environment.yml
 conda activate aadr-lp
@@ -72,7 +71,7 @@ hashcheck: NO
 EOF
 
 # 3. Convert the whole dataset to PLINK format (longer step; reads the 6.7 GB file)
-convertf - p convertf_lactase.par 2>&1 | tee convertf_log.txt
+convertf -p convertf_lactase.par 2>&1 | tee convertf_log.txt
 
 # 4. Check the allele order: expect A1 = G (ancestral) and A2 = A (derived, LP allele)
 grep -w "rs4988235" aadr_1240k.bim
@@ -80,7 +79,7 @@ grep -w "rs4988235" aadr_1240k.bim
 # 5. Extract the one SNP. --keep-allele-order stops PLINK from silently swapping A1/A2.
 plink --bfile aadr_1240k --snp rs4988235 --keep-allele-order --recode A --out lactase_extract
 
-# 6. Sanity checks: 23,090 lines (header + 23.089); first row Loschbour.AG should have rs4988235_G = 2
+# 6. Sanity checks: 23,090 lines (header + 23,089); first row Loschbour.AG should have rs4988235_G = 2
 wc -l lactase_extract.raw
 head -3 lactase_extract.raw
 
